@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: amanat-db
+    restart: always
+    environment:
+      POSTGRES_USER: amanat
+      POSTGRES_PASSWORD: amanat123
+      POSTGRES_DB: amanat_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - amanat-net
+
+  backend:
+    build: .
+    container_name: amanat-api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "postgresql://amanat:amanat123@postgres:5432/amanat_db"
+      JWT_SECRET: "SUPERSECRETAMANAT"
+      PORT: 8000
+    depends_on:
+      - postgres
+    networks:
+      - amanat-net
+
+volumes:
+  pgdata:
+
+networks:
+  amanat-net:
