@@ -19,3 +19,18 @@ model User {
   SuratMasuk  SuratMasuk[]
   SuratKeluar SuratKeluar[]
 }
+
+
+model SuratMasuk {
+  id          Int      @id @default(autoincrement())
+  nomor       String
+  perihal     String
+  pengirim    String
+  tanggal     DateTime
+  fileUrl     String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+}
