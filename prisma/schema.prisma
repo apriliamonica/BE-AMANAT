@@ -34,3 +34,16 @@ model SuratMasuk {
   userId Int
   user   User @relation(fields: [userId], references: [id])
 }
+
+model SuratKeluar {
+  id          Int      @id @default(autoincrement())
+  nomor       String
+  perihal     String
+  tujuan      String
+  tanggal     DateTime
+  fileUrl     String
+  createdAt   DateTime @default(now())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id])
+}
