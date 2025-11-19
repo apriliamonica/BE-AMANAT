@@ -20,7 +20,6 @@ model User {
   SuratKeluar SuratKeluar[]
 }
 
-
 model SuratMasuk {
   id          Int      @id @default(autoincrement())
   nomor       String
@@ -46,4 +45,12 @@ model SuratKeluar {
 
   userId Int
   user   User @relation(fields: [userId], references: [id])
+}
+
+enum Role {
+  SEKRETARIS_KANTOR
+  KETUA_PENGURUS
+  SEKRETARIS_PENGURUS
+  BENDAHARA
+  KEPALA_BAGIAN
 }
