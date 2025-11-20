@@ -7,50 +7,123 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role
-  bagian    String?  // Khusus Kepala Bagian
-  createdAt DateTime @default(now())
-
-  SuratMasuk  SuratMasuk[]
-  SuratKeluar SuratKeluar[]
-}
-
-model SuratMasuk {
-  id          Int      @id @default(autoincrement())
-  nomor       String
-  perihal     String
-  pengirim    String
-  tanggal     DateTime
-  fileUrl     String
-  status      String   @default("pending")
-  createdAt   DateTime @default(now())
-
-  userId Int
-  user   User @relation(fields: [userId], references: [id])
-}
-
-model SuratKeluar {
-  id          Int      @id @default(autoincrement())
-  nomor       String
-  perihal     String
-  tujuan      String
-  tanggal     DateTime
-  fileUrl     String
-  createdAt   DateTime @default(now())
-
-  userId Int
-  user   User @relation(fields: [userId], references: [id])
-}
-
 enum Role {
   SEKRETARIS_KANTOR
   KETUA_PENGURUS
   SEKRETARIS_PENGURUS
-  BENDAHARA
+  BENDAHARA_PENGURUS
   KEPALA_BAGIAN
+}
+
+enum StatusSurat {
+  BARU
+  DIPROSES
+  SELESAI
+  DITOLAK
+  PENDING
+}
+
+enum Prioritas {
+  RENDAH
+  SEDANG
+  TINGGI
+  URGENT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      Role
+  bagian    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  suratMasukCreated  SuratMasuk[]  @relation("CreatedBy")
+  suratKeluarCreated SuratKeluar[] @relation("CreatedBy")
+  disposisiFrom      Disposisi[]   @relation("DisposisiFrom")
+  disposisiTo        Disposisi[]   @relation("DisposisiTo")
+
+  @@map("users")
+}
+
+model SuratMasuk {
+  id           String       @id @default(uuid())
+  nomorSurat   String       @unique
+  tanggalSurat DateTime
+  asalSurat    String
+  perihal      String
+  kategori     String
+  prioritas    Prioritas
+  status       StatusSurat  @default(BARU)
+  filePath     String?
+  createdById  String
+  createdBy    User         @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  disposisi    Disposisi[]
+  tracking     TrackingSurat[]
+
+  @@map("surat_masuk")
+}
+
+model SuratKeluar {
+  id           String       @id @default(uuid())
+  nomorSurat   String       @unique
+  tanggalSurat DateTime
+  tujuanSurat  String
+  perihal      String
+  isiSurat     String
+  kategori     String
+  status       StatusSurat  @default(PENDING)
+  filePath     String?
+  lampiranPath String?
+  createdById  String
+  createdBy    User         @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tracking     TrackingSurat[]
+
+  @@map("surat_keluar")
+}
+
+model Disposisi {
+  id             String       @id @default(uuid())
+  nomorSurat     String
+  fromUserId     String
+  fromUser       User         @relation("DisposisiFrom", fields: [fromUserId], references: [id])
+  toUserId       String
+  toUser         User         @relation("DisposisiTo", fields: [toUserId], references: [id])
+  perihal        String
+  instruksi      String
+  tenggatWaktu   DateTime
+  prioritas      Prioritas    @default(SEDANG)
+  status         StatusSurat  @default(PENDING)
+  catatan        String?
+  suratMasukId   String
+  suratMasuk     SuratMasuk   @relation(fields: [suratMasukId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("disposisi")
+}
+
+model TrackingSurat {
+  id             String       @id @default(uuid())
+  nomorSurat     String
+  status         String
+  keterangan     String
+  oleh           String
+  suratMasukId   String?
+  suratMasuk     SuratMasuk?  @relation(fields: [suratMasukId], references: [id])
+  suratKeluarId  String?
+  suratKeluar    SuratKeluar? @relation(fields: [suratKeluarId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@map("tracking_surat")
 }
