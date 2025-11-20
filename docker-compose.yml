@@ -1,38 +1,55 @@
-version: "3.9"
+version: '3.8'
 
 services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:16
-    container_name: amanat-db
-    restart: always
-    environment:
-      POSTGRES_USER: amanat
-      POSTGRES_PASSWORD: amanat123
-      POSTGRES_DB: amanat_db
+    image: postgres:15-alpine
+    container_name: amanat_postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - amanat-net
-
-  backend:
-    build: .
-    container_name: amanat-api
-    restart: always
-    ports:
-      - "8000:8000"
     environment:
-      DATABASE_URL: "postgresql://amanat:amanat123@postgres:5432/amanat_db"
-      JWT_SECRET: "SUPERSECRETAMANAT"
-      PORT: 8000
-    depends_on:
-      - postgres
+      POSTGRES_DB: amanat_db
+      POSTGRES_USER: amanat_user
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
-      - amanat-net
+      - amanat_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amanat_user -d amanat_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Node.js API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: amanat_api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://amanat_user:password123@postgres:5432/amanat_db
+      JWT_SECRET: your-secret-key-change-this-in-production
+      PORT: 3000
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - amanat_network
+    command: npm run dev
 
 volumes:
-  pgdata:
+  postgres_data:
+    driver: local
 
 networks:
-  amanat-net:
+  amanat_network:
+    driver: bridge
