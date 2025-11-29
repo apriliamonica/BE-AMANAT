@@ -204,10 +204,103 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+/**
+ * Generate password variations for a given username
+ * This does NOT change the user's password — it only generates possible variants.
+ */
+const generatePasswordVariants = async (req, res, next) => {
+  try {
+    const { username } = req.body;
+    if (!username) return errorResponse(res, 'Username harus disertakan', 400);
+
+    const base = String(username);
+    const reversed = base.split('').reverse().join('');
+    const year = new Date().getFullYear();
+
+    // Common patterns
+    const variants = [
+      base,
+      base + '123',
+      base + '1234',
+      base + '12345',
+      base + '!' ,
+      base + '@' + (year % 100),
+      base + '@' + year,
+      base + '#2025',
+      base + '2025',
+      reversed,
+      reversed + '123',
+      'Password' + base,
+      base + '!' + (year % 100),
+      base + '2024',
+      base + '_admin',
+      base + '$',
+    ];
+
+    // Deduplicate while preserving order
+    const dedup = [...new Set(variants)];
+
+    return successResponse(res, { variants: dedup }, 'Variasi kata sandi dihasilkan');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Test generated variants against stored password hash for a username.
+ * WARNING: returns which variants match — use only in development/testing.
+ */
+const testPasswordVariants = async (req, res, next) => {
+  try {
+    const { username } = req.body;
+    if (!username) return errorResponse(res, 'Username harus disertakan', 400);
+
+    const user = await prisma.user.findUnique({ where: { username } });
+    if (!user) return errorResponse(res, 'User tidak ditemukan', 404);
+
+    // Reuse generator
+    const base = String(username);
+    const reversed = base.split('').reverse().join('');
+    const year = new Date().getFullYear();
+
+    const candidates = [
+      base,
+      base + '123',
+      base + '1234',
+      base + '12345',
+      base + '!' ,
+      base + '@' + (year % 100),
+      base + '@' + year,
+      base + '#2025',
+      base + '2025',
+      reversed,
+      reversed + '123',
+      'Password' + base,
+      base + '!' + (year % 100),
+      base + '2024',
+      base + '_admin',
+      base + '$',
+    ];
+
+    const matches = [];
+    for (const cand of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const ok = await bcrypt.compare(cand, user.password);
+      if (ok) matches.push(cand);
+    }
+
+    return successResponse(res, { matches, tested: candidates.length }, 'Hasil pengujian variasi kata sandi');
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  generatePasswordVariants,
+  testPasswordVariants
 };
