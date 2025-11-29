@@ -1,4 +1,4 @@
-const prisma = require('../config/database.cjs');
+const prisma = require("../config/database.cjs");
 
 (async () => {
   try {
@@ -9,7 +9,7 @@ const prisma = require('../config/database.cjs');
       WHERE t.typname = 'role'
       ORDER BY e.enumsortorder
     `;
-    console.log(rows.map(r => r.enumlabel));
+    console.log(rows.map((r) => r.enumlabel));
     process.exit(0);
   } catch (e) {
     console.error(e);

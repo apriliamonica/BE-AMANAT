@@ -1,4 +1,4 @@
-const prisma = require('../config/database.cjs');
+const prisma = require("../config/database.cjs");
 
 (async () => {
   try {

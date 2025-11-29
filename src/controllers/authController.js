@@ -1,8 +1,8 @@
 // src/controllers/authController.js
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const prisma = require('../config/database');
-const { successResponse, errorResponse } = require('../utils/response');
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const prisma = require("../config/database");
+const { successResponse, errorResponse } = require("../utils/response");
 
 /**
  * Register new user
@@ -14,15 +14,12 @@ const register = async (req, res, next) => {
     // Check if email or username already exists
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email },
-          { username }
-        ]
-      }
+        OR: [{ email }, { username }],
+      },
     });
 
     if (existingUser) {
-      return errorResponse(res, 'Email atau username sudah digunakan', 400);
+      return errorResponse(res, "Email atau username sudah digunakan", 400);
     }
 
     // Hash password
@@ -35,9 +32,9 @@ const register = async (req, res, next) => {
         email,
         username,
         password: hashedPassword,
-        role: role || 'STAFF',
+        role: role || "STAFF",
         bagian,
-        jabatan
+        jabatan,
       },
       select: {
         id: true,
@@ -47,11 +44,11 @@ const register = async (req, res, next) => {
         role: true,
         bagian: true,
         jabatan: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
 
-    return successResponse(res, user, 'User berhasil dibuat', 201);
+    return successResponse(res, user, "User berhasil dibuat", 201);
   } catch (error) {
     next(error);
   }
@@ -66,30 +63,28 @@ const login = async (req, res, next) => {
 
     // Find user
     const user = await prisma.user.findUnique({
-      where: { username }
+      where: { username },
     });
 
     if (!user) {
-      return errorResponse(res, 'Username atau password salah', 401);
+      return errorResponse(res, "Username atau password salah", 401);
     }
 
     if (!user.isActive) {
-      return errorResponse(res, 'Akun tidak aktif', 403);
+      return errorResponse(res, "Akun tidak aktif", 403);
     }
 
     // Check password
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      return errorResponse(res, 'Username atau password salah', 401);
+      return errorResponse(res, "Username atau password salah", 401);
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    });
 
     // Return user data without password
     const userData = {
@@ -99,10 +94,10 @@ const login = async (req, res, next) => {
       username: user.username,
       role: user.role,
       bagian: user.bagian,
-      jabatan: user.jabatan
+      jabatan: user.jabatan,
     };
 
-    return successResponse(res, { user: userData, token }, 'Login berhasil');
+    return successResponse(res, { user: userData, token }, "Login berhasil");
   } catch (error) {
     next(error);
   }
@@ -126,11 +121,11 @@ const getProfile = async (req, res, next) => {
         phone: true,
         isActive: true,
         createdAt: true,
-        updatedAt: true
-      }
+        updatedAt: true,
+      },
     });
 
-    return successResponse(res, user, 'Profile berhasil diambil');
+    return successResponse(res, user, "Profile berhasil diambil");
   } catch (error) {
     next(error);
   }
@@ -150,7 +145,7 @@ const updateProfile = async (req, res, next) => {
         email,
         phone,
         bagian,
-        jabatan
+        jabatan,
       },
       select: {
         id: true,
@@ -160,11 +155,11 @@ const updateProfile = async (req, res, next) => {
         role: true,
         bagian: true,
         jabatan: true,
-        phone: true
-      }
+        phone: true,
+      },
     });
 
-    return successResponse(res, user, 'Profile berhasil diupdate');
+    return successResponse(res, user, "Profile berhasil diupdate");
   } catch (error) {
     next(error);
   }
@@ -179,14 +174,14 @@ const changePassword = async (req, res, next) => {
 
     // Get user with password
     const user = await prisma.user.findUnique({
-      where: { id: req.user.id }
+      where: { id: req.user.id },
     });
 
     // Check old password
     const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
     if (!isPasswordValid) {
-      return errorResponse(res, 'Password lama salah', 400);
+      return errorResponse(res, "Password lama salah", 400);
     }
 
     // Hash new password
@@ -195,10 +190,10 @@ const changePassword = async (req, res, next) => {
     // Update password
     await prisma.user.update({
       where: { id: req.user.id },
-      data: { password: hashedPassword }
+      data: { password: hashedPassword },
     });
 
-    return successResponse(res, null, 'Password berhasil diubah');
+    return successResponse(res, null, "Password berhasil diubah");
   } catch (error) {
     next(error);
   }
@@ -211,36 +206,40 @@ const changePassword = async (req, res, next) => {
 const generatePasswordVariants = async (req, res, next) => {
   try {
     const { username } = req.body;
-    if (!username) return errorResponse(res, 'Username harus disertakan', 400);
+    if (!username) return errorResponse(res, "Username harus disertakan", 400);
 
     const base = String(username);
-    const reversed = base.split('').reverse().join('');
+    const reversed = base.split("").reverse().join("");
     const year = new Date().getFullYear();
 
     // Common patterns
     const variants = [
       base,
-      base + '123',
-      base + '1234',
-      base + '12345',
-      base + '!' ,
-      base + '@' + (year % 100),
-      base + '@' + year,
-      base + '#2025',
-      base + '2025',
+      base + "123",
+      base + "1234",
+      base + "12345",
+      base + "!",
+      base + "@" + (year % 100),
+      base + "@" + year,
+      base + "#2025",
+      base + "2025",
       reversed,
-      reversed + '123',
-      'Password' + base,
-      base + '!' + (year % 100),
-      base + '2024',
-      base + '_admin',
-      base + '$',
+      reversed + "123",
+      "Password" + base,
+      base + "!" + (year % 100),
+      base + "2024",
+      base + "_admin",
+      base + "$",
     ];
 
     // Deduplicate while preserving order
     const dedup = [...new Set(variants)];
 
-    return successResponse(res, { variants: dedup }, 'Variasi kata sandi dihasilkan');
+    return successResponse(
+      res,
+      { variants: dedup },
+      "Variasi kata sandi dihasilkan"
+    );
   } catch (error) {
     next(error);
   }
@@ -253,38 +252,42 @@ const generatePasswordVariants = async (req, res, next) => {
 const testPasswordVariants = async (req, res, next) => {
   try {
     // Only allow this endpoint in non-production environments
-    if (process.env.NODE_ENV === 'production') {
-      return errorResponse(res, 'Endpoint ini hanya tersedia di lingkungan development', 403);
+    if (process.env.NODE_ENV === "production") {
+      return errorResponse(
+        res,
+        "Endpoint ini hanya tersedia di lingkungan development",
+        403
+      );
     }
 
     const { username } = req.body;
-    if (!username) return errorResponse(res, 'Username harus disertakan', 400);
+    if (!username) return errorResponse(res, "Username harus disertakan", 400);
 
     const user = await prisma.user.findUnique({ where: { username } });
-    if (!user) return errorResponse(res, 'User tidak ditemukan', 404);
+    if (!user) return errorResponse(res, "User tidak ditemukan", 404);
 
     // Reuse generator
     const base = String(username);
-    const reversed = base.split('').reverse().join('');
+    const reversed = base.split("").reverse().join("");
     const year = new Date().getFullYear();
 
     const candidates = [
       base,
-      base + '123',
-      base + '1234',
-      base + '12345',
-      base + '!' ,
-      base + '@' + (year % 100),
-      base + '@' + year,
-      base + '#2025',
-      base + '2025',
+      base + "123",
+      base + "1234",
+      base + "12345",
+      base + "!",
+      base + "@" + (year % 100),
+      base + "@" + year,
+      base + "#2025",
+      base + "2025",
       reversed,
-      reversed + '123',
-      'Password' + base,
-      base + '!' + (year % 100),
-      base + '2024',
-      base + '_admin',
-      base + '$',
+      reversed + "123",
+      "Password" + base,
+      base + "!" + (year % 100),
+      base + "2024",
+      base + "_admin",
+      base + "$",
     ];
 
     const matches = [];
@@ -294,7 +297,11 @@ const testPasswordVariants = async (req, res, next) => {
       if (ok) matches.push(cand);
     }
 
-    return successResponse(res, { matches, tested: candidates.length }, 'Hasil pengujian variasi kata sandi');
+    return successResponse(
+      res,
+      { matches, tested: candidates.length },
+      "Hasil pengujian variasi kata sandi"
+    );
   } catch (error) {
     next(error);
   }
@@ -307,5 +314,5 @@ module.exports = {
   updateProfile,
   changePassword,
   generatePasswordVariants,
-  testPasswordVariants
+  testPasswordVariants,
 };

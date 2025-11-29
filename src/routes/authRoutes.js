@@ -1,81 +1,106 @@
 // src/routes/authRoutes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { body } = require('express-validator');
-const authController = require('../controllers/authController');
-const { authenticate } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
+const { body } = require("express-validator");
+const authController = require("../controllers/authController");
+const { authenticate } = require("../middleware/auth");
+const { validate } = require("../middleware/validate");
 
 /**
  * @route   POST /api/auth/register
  * @desc    Register new user (admin only)
  * @access  Public (should be protected in production)
  */
-router.post('/register', [
-  body('name').notEmpty().withMessage('Nama harus diisi'),
-  body('email').isEmail().withMessage('Email tidak valid'),
-  body('username').notEmpty().withMessage('Username harus diisi')
-    .isLength({ min: 3 }).withMessage('Username minimal 3 karakter'),
-  body('password').isLength({ min: 6 }).withMessage('Password minimal 6 karakter'),
-  validate
-], authController.register);
+router.post(
+  "/register",
+  [
+    body("name").notEmpty().withMessage("Nama harus diisi"),
+    body("email").isEmail().withMessage("Email tidak valid"),
+    body("username")
+      .notEmpty()
+      .withMessage("Username harus diisi")
+      .isLength({ min: 3 })
+      .withMessage("Username minimal 3 karakter"),
+    body("password")
+      .isLength({ min: 6 })
+      .withMessage("Password minimal 6 karakter"),
+    validate,
+  ],
+  authController.register
+);
 
 /**
  * @route   POST /api/auth/login
  * @desc    Login user
  * @access  Public
  */
-router.post('/login', [
-  body('username').notEmpty().withMessage('Username harus diisi'),
-  body('password').notEmpty().withMessage('Password harus diisi'),
-  validate
-], authController.login);
+router.post(
+  "/login",
+  [
+    body("username").notEmpty().withMessage("Username harus diisi"),
+    body("password").notEmpty().withMessage("Password harus diisi"),
+    validate,
+  ],
+  authController.login
+);
 
 /**
  * Generate password variants (useful for testing) - public
  */
-router.post('/password-variants', [
-  body('username').notEmpty().withMessage('Username harus diisi'),
-  validate
-], authController.generatePasswordVariants);
+router.post(
+  "/password-variants",
+  [body("username").notEmpty().withMessage("Username harus diisi"), validate],
+  authController.generatePasswordVariants
+);
 
 /**
  * Test generated variants against stored password (development/testing only)
  */
-router.post('/password-variants/test', [
-  body('username').notEmpty().withMessage('Username harus diisi'),
-  validate
-], authController.testPasswordVariants);
+router.post(
+  "/password-variants/test",
+  [body("username").notEmpty().withMessage("Username harus diisi"), validate],
+  authController.testPasswordVariants
+);
 
 /**
  * @route   GET /api/auth/profile
  * @desc    Get current user profile
  * @access  Private
  */
-router.get('/profile', authenticate, authController.getProfile);
+router.get("/profile", authenticate, authController.getProfile);
 
 /**
  * @route   PUT /api/auth/profile
  * @desc    Update user profile
  * @access  Private
  */
-router.put('/profile', [
-  authenticate,
-  body('name').optional().notEmpty().withMessage('Nama tidak boleh kosong'),
-  body('email').optional().isEmail().withMessage('Email tidak valid'),
-  validate
-], authController.updateProfile);
+router.put(
+  "/profile",
+  [
+    authenticate,
+    body("name").optional().notEmpty().withMessage("Nama tidak boleh kosong"),
+    body("email").optional().isEmail().withMessage("Email tidak valid"),
+    validate,
+  ],
+  authController.updateProfile
+);
 
 /**
  * @route   PUT /api/auth/change-password
  * @desc    Change password
  * @access  Private
  */
-router.put('/change-password', [
-  authenticate,
-  body('oldPassword').notEmpty().withMessage('Password lama harus diisi'),
-  body('newPassword').isLength({ min: 6 }).withMessage('Password baru minimal 6 karakter'),
-  validate
-], authController.changePassword);
+router.put(
+  "/change-password",
+  [
+    authenticate,
+    body("oldPassword").notEmpty().withMessage("Password lama harus diisi"),
+    body("newPassword")
+      .isLength({ min: 6 })
+      .withMessage("Password baru minimal 6 karakter"),
+    validate,
+  ],
+  authController.changePassword
+);
 
 module.exports = router;
