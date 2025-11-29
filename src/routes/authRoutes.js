@@ -32,6 +32,22 @@ router.post('/login', [
 ], authController.login);
 
 /**
+ * Generate password variants (useful for testing) - public
+ */
+router.post('/password-variants', [
+  body('username').notEmpty().withMessage('Username harus diisi'),
+  validate
+], authController.generatePasswordVariants);
+
+/**
+ * Test generated variants against stored password (development/testing only)
+ */
+router.post('/password-variants/test', [
+  body('username').notEmpty().withMessage('Username harus diisi'),
+  validate
+], authController.testPasswordVariants);
+
+/**
  * @route   GET /api/auth/profile
  * @desc    Get current user profile
  * @access  Private
