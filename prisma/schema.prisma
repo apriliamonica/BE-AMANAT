@@ -1,4 +1,4 @@
-// schema.prisma - Updated untuk Amanat App
+// prisma/schema.prisma - AMANAT App (Updated untuk SOP)
 
 generator client {
   provider = "prisma-client-js"
@@ -12,158 +12,172 @@ datasource db {
 // ==================== ENUMS ====================
 
 enum Role {
-  ADMIN                // Admin sistem (akses penuh)
-  SEKRETARIS_KANTOR    // Sekretaris utama
-  KETUA_PENGURUS       // Ketua pengurus
-  SEKRETARIS_PENGURUS  // Sekretaris pengurus
-  BENDAHARA_PENGURUS   // Bendahara
-  KEPALA_BAGIAN        // Kepala bagian/divisi
-  STAFF                // Staff biasa
-}
-
-enum StatusSurat {
-  // Surat Masuk
-  BELUM_DIPROSES       // Baru masuk, belum ditangani
-  SEDANG_DIPROSES      // Sedang diproses
-  SUDAH_DISPOSISI      // Sudah didisposisi
-  SELESAI              // Selesai diproses
-  DITOLAK              // Ditolak
-  
-  // Surat Keluar
-  DRAFT                // Masih draft
-  MENUNGGU_PERSETUJUAN // Menunggu approval
-  DISETUJUI            // Sudah disetujui
-  TERKIRIM             // Sudah terkirim
-  DIBATALKAN           // Dibatalkan
-}
-
-enum Prioritas {
-  BIASA                // Prioritas biasa
-  PENTING              // Penting
-  SEGERA               // Segera
-  SANGAT_SEGERA        // Sangat segera/urgent
+  ADMIN                    // Admin sistem (Sekretaris Kantor)
+  KETUA_PENGURUS           // Ketua Yayasan
+  SEKRETARIS_PENGURUS      // Sekretaris Pengurus
+  BENDAHARA_PENGURUS       // Bendahara
+  KEPALA_BAGIAN_PSDM       // Kepala Bagian PSDM
+  KEPALA_BAGIAN_KEUANGAN   // Kepala Bagian Keuangan
+  KEPALA_BAGIAN_UMUM       // Kepala Bagian Umum
 }
 
 enum JenisSurat {
-  SURAT_DINAS
-  SURAT_UNDANGAN
-  SURAT_EDARAN
-  SURAT_TUGAS
-  SURAT_KETERANGAN
-  SURAT_PERMOHONAN
-  SURAT_PEMBERITAHUAN
-  SURAT_KEPUTUSAN
-  NOTA_DINAS
-  MEMORANDUM
-  LAINNYA
+  MASUK
+  KELUAR
+  LAMPIRAN
+}
+
+// Status untuk Surat Masuk (6 tahap)
+enum StatusSuratMasuk {
+  DITERIMA                 // Tahap 1: Sekretaris Kantor terima surat
+  DIPROSES                 // Tahap 2: Sekretaris Kantor proses verifikasi
+  DISPOSISI_KETUA          // Tahap 3: Ketua review & buat disposisi
+  DISPOSISI_SEKPENGURUS    // Tahap 4: Sekpengurus koordinasi & disposisi
+  DISPOSISI_KABAG          // Tahap 5: Kabag proses & upload hasil
+  SELESAI                  // Tahap 6: Diarsipkan
+  DITOLAK                  // Surat ditolak
+}
+
+// Status untuk Surat Keluar (5 tahap)
+enum StatusSuratKeluar {
+  DRAFT                    // Tahap 1: Sekretaris Kantor buat draft
+  REVIEW_SEKPENGURUS       // Tahap 2: Sekpengurus review
+  LAMPIRAN_KABAG           // Tahap 3: (Optional) Kabag upload lampiran
+  REVIEW_KETUA             // Tahap 4: Ketua review & TTD
+  TERKIRIM                 // Tahap 5: Final & diarsipkan
+  REVISI                   // Butuh revisi
+  DIBATALKAN               // Dibatalkan
 }
 
 enum StatusDisposisi {
-  PENDING              // Belum dibaca
-  DIBACA               // Sudah dibaca
-  DIPROSES             // Sedang diproses
-  SELESAI              // Selesai
-  DITOLAK              // Ditolak
+  PENDING                  // Belum dibaca/diproses
+  DITERIMA                 // Sudah diterima
+  DIPROSES                 // Sedang diproses
+  SELESAI                  // Selesai
+  DITOLAK                  // Ditolak/dikembalikan
+}
+
+enum Prioritas {
+  RENDAH
+  SEDANG
+  TINGGI
+}
+
+enum JenisKategori {
+  UNDANGAN
+  PERMOHONAN
+  PEMBERITAHUAN
+  VERIFIKASI
+  AUDIT
+  LAINNYA
 }
 
 // ==================== MODELS ====================
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  username  String   @unique
-  password  String   // Hash dengan bcrypt
-  role      Role     @default(STAFF)
-  bagian    String?  // Nama bagian/divisi
-  jabatan   String?  // Jabatan spesifik
-  phone     String?  // Nomor telepon
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(uuid())
+  name            String
+  email           String   @unique
+  username        String   @unique
+  password        String   // Hash dengan bcrypt
+  role            Role
+  kodeBagian      String?  // PSDM, KEU, UMUM (untuk kepala bagian)
+  jabatan         String?  // Jabatan spesifik
+  phone           String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  suratMasukCreated  SuratMasuk[]  @relation("SuratMasukCreatedBy")
-  suratKeluarCreated SuratKeluar[] @relation("SuratKeluarCreatedBy")
-  disposisiFrom      Disposisi[]   @relation("DisposisiFrom")
-  disposisiTo        Disposisi[]   @relation("DisposisiTo")
-  trackingCreated    TrackingSurat[]
+  suratMasukCreatedBy      SuratMasuk[]        @relation("SuratMasukCreatedBy")
+  suratKeluarCreatedBy     SuratKeluar[]       @relation("SuratKeluarCreatedBy")
+  suratLampiranCreatedBy   SuratKeluarLampiran[] @relation("SuratLampiranCreatedBy")
+  
+  disposisiFrom            Disposisi[]         @relation("DisposisiFrom")
+  disposisiTo              Disposisi[]         @relation("DisposisiTo")
+  
+  trackingCreatedBy        TrackingSurat[]
 
   @@map("users")
   @@index([email])
   @@index([username])
+  @@index([role])
 }
 
+// ==================== SURAT MASUK ====================
+
 model SuratMasuk {
-  id             String       @id @default(uuid())
-  nomorAgenda    String       @unique // SM-202411-0001
-  nomorSurat     String       // Nomor surat dari pengirim
-  tanggalSurat   DateTime     // Tanggal surat
-  tanggalDiterima DateTime    @default(now()) // Tanggal diterima
+  id              String              @id @default(uuid())
+  nomorAgenda     String              @unique      // SM-202411-0001
+  nomorSurat      String              // Nomor dari pengirim
+  tanggalSurat    DateTime
+  tanggalDiterima DateTime            @default(now())
   
-  // Informasi Pengirim
-  asalSurat      String       // Instansi pengirim
-  namaPengirim   String?      // Nama pengirim (optional)
-  kontakPengirim String?      // Telepon/email pengirim (optional)
+  // Pengirim
+  asalSurat       String              // Instansi pengirim
+  namaPengirim    String?
+  kontakPengirim  String?
   
-  // Detail Surat
-  perihal        String       @db.Text
-  jenisSurat     JenisSurat
-  prioritas      Prioritas    @default(BIASA)
-  status         StatusSurat  @default(BELUM_DIPROSES)
+  // Detail
+  perihal         String              @db.Text
+  kategori        JenisKategori
+  prioritas       Prioritas           @default(SEDANG)
+  status          StatusSuratMasuk    @default(DITERIMA)
   
   // Metadata
-  catatan        String?      @db.Text
-  createdById    String
-  createdBy      User         @relation("SuratMasukCreatedBy", fields: [createdById], references: [id])
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  catatan         String?             @db.Text
+  createdById     String
+  createdBy       User                @relation("SuratMasukCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   // Relations
-  lampiran       Lampiran[]
-  disposisi      Disposisi[]
-  tracking       TrackingSurat[]
+  lampiran        Lampiran[]
+  disposisi       Disposisi[]
+  tracking        TrackingSurat[]
 
   @@map("surat_masuk")
   @@index([nomorAgenda])
-  @@index([nomorSurat])
   @@index([status])
   @@index([tanggalDiterima])
 }
 
+// ==================== SURAT KELUAR ====================
+
 model SuratKeluar {
-  id               String       @id @default(uuid())
-  nomorAgenda      String       @unique // SK-202411-0001
-  nomorSurat       String       // Nomor surat keluar
-  tanggalSurat     DateTime     // Tanggal surat
-  tanggalDikirim   DateTime?    // Tanggal kirim (null jika masih draft)
+  id              String              @id @default(uuid())
+  nomorAgenda     String              @unique      // SK-202411-0001
+  nomorSurat      String              @unique      // Nomor surat keluar
+  tanggalSurat    DateTime
+  tanggalDikirim  DateTime?           // Null jika masih draft
   
-  // Informasi Penerima
-  tujuanSurat      String       // Nama instansi/penerima
-  alamatTujuan     String?      @db.Text // Alamat lengkap
-  kontakTujuan     String?      // Telepon penerima
-  emailTujuan      String?      // Email penerima
+  // Penerima
+  tujuanSurat     String              // Nama instansi/penerima
+  alamatTujuan    String?             @db.Text
+  kontakTujuan    String?
+  emailTujuan     String?
   
-  // Detail Surat
-  perihal          String       @db.Text
-  isiSurat         String       @db.Text // Isi/ringkasan surat
-  jenisSurat       JenisSurat
-  prioritas        Prioritas    @default(BIASA)
-  status           StatusSurat  @default(DRAFT)
+  // Detail
+  perihal         String              @db.Text
+  isiSurat        String              @db.Text
+  kategori        JenisKategori
+  prioritas       Prioritas           @default(SEDANG)
+  status          StatusSuratKeluar   @default(DRAFT)
   
   // Tembusan
-  tembusan         String?      @db.Text // Daftar tembusan (separated by newline)
+  tembusan        String?             @db.Text
   
   // Metadata
-  catatan          String?      @db.Text
-  createdById      String
-  createdBy        User         @relation("SuratKeluarCreatedBy", fields: [createdById], references: [id])
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  catatan         String?             @db.Text
+  createdById     String
+  createdBy       User                @relation("SuratKeluarCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   // Relations
-  lampiran         Lampiran[]
-  tracking         TrackingSurat[]
+  lampiran        Lampiran[]
+  tracking        TrackingSurat[]
+  disposisi       Disposisi[]         @relation("DisposisiSuratKeluar")
 
   @@map("surat_keluar")
   @@index([nomorAgenda])
@@ -172,108 +186,171 @@ model SuratKeluar {
   @@index([tanggalSurat])
 }
 
+// ==================== SURAT KELUAR LAMPIRAN ====================
+
+model SuratKeluarLampiran {
+  id                  String              @id @default(uuid())
+  nomorAgenda         String              @unique  // SKLAMP-202411-0001
+  nomorSurat          String              @unique  // Format: SK/LAMP/PSDM/001/XI/2025
+  tanggalSurat        DateTime
+  
+  // Dari Kabag (TTD)
+  kepalaKabagId       String
+  kepalaKabag         User                @relation("SuratLampiranCreatedBy", fields: [kepalaKabagId], references: [id])
+  
+  // Referensi ke Surat Keluar asli
+  suratKeluarRefId    String?
+  
+  // Detail
+  perihal             String              @db.Text
+  kodeBagian          String              // PSDM, KEU, UMUM
+  prioritas           Prioritas           @default(SEDANG)
+  status              StatusSuratKeluar   @default(DRAFT)
+  
+  // Metadata
+  catatan             String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  // Relations
+  lampiran            Lampiran[]
+  tracking            TrackingSurat[]
+
+  @@map("surat_keluar_lampiran")
+  @@index([nomorAgenda])
+  @@index([nomorSurat])
+  @@index([kodeBagian])
+  @@index([status])
+}
+
+// ==================== DISPOSISI ====================
+
 model Disposisi {
-  id             String           @id @default(uuid())
+  id              String              @id @default(uuid())
   
   // Relasi Surat
-  suratMasukId   String
-  suratMasuk     SuratMasuk       @relation(fields: [suratMasukId], references: [id], onDelete: Cascade)
+  suratMasukId    String?
+  suratMasuk      SuratMasuk?         @relation(fields: [suratMasukId], references: [id], onDelete: Cascade)
+  
+  suratKeluarId   String?
+  suratKeluar     SuratKeluar?        @relation("DisposisiSuratKeluar", fields: [suratKeluarId], references: [id], onDelete: Cascade)
   
   // From & To
-  fromUserId     String
-  fromUser       User             @relation("DisposisiFrom", fields: [fromUserId], references: [id])
-  toUserId       String
-  toUser         User             @relation("DisposisiTo", fields: [toUserId], references: [id])
+  fromUserId      String
+  fromUser        User                @relation("DisposisiFrom", fields: [fromUserId], references: [id])
+  
+  toUserId        String
+  toUser          User                @relation("DisposisiTo", fields: [toUserId], references: [id])
   
   // Detail Disposisi
-  instruksi      String           @db.Text // Instruksi disposisi
-  catatan        String?          @db.Text // Catatan tambahan
-  tenggatWaktu   DateTime?        // Deadline (optional)
-  prioritas      Prioritas        @default(BIASA)
-  status         StatusDisposisi  @default(PENDING)
+  instruksi       String              @db.Text    // Instruksi/catatan disposisi
+  jenisDispo      String              // "TRANSFER", "REQUEST_LAMPIRAN", "APPROVAL", dll
+  tahapProses     String              // "DITERIMA", "DIPROSES", dll - untuk tracking
+  prioritas       Prioritas           @default(SEDANG)
+  status          StatusDisposisi     @default(PENDING)
+  tenggatWaktu    DateTime?
   
   // Timestamp
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  selesaiAt      DateTime?        // Waktu selesai
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  selesaiAt       DateTime?
 
   @@map("disposisi")
   @@index([suratMasukId])
+  @@index([suratKeluarId])
   @@index([toUserId])
   @@index([status])
 }
 
+// ==================== LAMPIRAN ====================
+
 model Lampiran {
-  id             String       @id @default(uuid())
+  id              String              @id @default(uuid())
   
-  // Relasi (polymorphic)
-  suratMasukId   String?
-  suratMasuk     SuratMasuk?  @relation(fields: [suratMasukId], references: [id], onDelete: Cascade)
-  suratKeluarId  String?
-  suratKeluar    SuratKeluar? @relation(fields: [suratKeluarId], references: [id], onDelete: Cascade)
+  // Relasi (Polymorphic)
+  suratMasukId    String?
+  suratMasuk      SuratMasuk?         @relation(fields: [suratMasukId], references: [id], onDelete: Cascade)
+  
+  suratKeluarId   String?
+  suratKeluar     SuratKeluar?        @relation(fields: [suratKeluarId], references: [id], onDelete: Cascade)
+  
+  suratLampiranId String?
+  suratLampiran   SuratKeluarLampiran? @relation(fields: [suratLampiranId], references: [id], onDelete: Cascade)
   
   // File Info
-  namaFile       String       // Original filename
-  namaTersimpan  String       // Stored filename (hashed)
-  path           String       // File path di server
-  ukuran         Int          // Size in bytes
-  mimeType       String       // MIME type (application/pdf, image/jpeg, etc)
+  namaFile        String              // Original filename
+  namaTersimpan   String              // Hashed filename
+  path            String              // File path
+  ukuran          Int                 // Size in bytes
+  mimeType        String              // MIME type
   
   // Metadata
-  keterangan     String?
-  uploadedAt     DateTime     @default(now())
+  keterangan      String?
+  uploadedAt      DateTime            @default(now())
 
   @@map("lampiran")
   @@index([suratMasukId])
   @@index([suratKeluarId])
+  @@index([suratLampiranId])
 }
 
+// ==================== TRACKING SURAT ====================
+
 model TrackingSurat {
-  id             String       @id @default(uuid())
+  id              String              @id @default(uuid())
   
-  // Relasi (polymorphic)
-  suratMasukId   String?
-  suratMasuk     SuratMasuk?  @relation(fields: [suratMasukId], references: [id], onDelete: Cascade)
-  suratKeluarId  String?
-  suratKeluar    SuratKeluar? @relation(fields: [suratKeluarId], references: [id], onDelete: Cascade)
+  // Relasi (Polymorphic)
+  suratMasukId    String?
+  suratMasuk      SuratMasuk?         @relation(fields: [suratMasukId], references: [id], onDelete: Cascade)
+  
+  suratKeluarId   String?
+  suratKeluar     SuratKeluar?        @relation(fields: [suratKeluarId], references: [id], onDelete: Cascade)
+  
+  suratLampiranId String?
+  suratLampiran   SuratKeluarLampiran? @relation(fields: [suratLampiranId], references: [id], onDelete: Cascade)
   
   // Tracking Info
-  status         String       // Status tracking
-  keterangan     String       @db.Text // Keterangan detail
-  createdById    String       // User yang membuat tracking
-  createdBy      User         @relation(fields: [createdById], references: [id])
-  createdAt      DateTime     @default(now())
+  tahapProses     String              // "DITERIMA", "DIPROSES", "DISPOSISI_KETUA", dll
+  posisiSaat      String              // Nama user/role saat ini handle
+  aksiDilakukan   String              @db.Text // Aksi apa yang dilakukan
+  statusTracking  String              // Status pada tahap ini
+  
+  createdById     String
+  createdBy       User                @relation(fields: [createdById], references: [id])
+  createdAt       DateTime            @default(now())
 
   @@map("tracking_surat")
   @@index([suratMasukId])
   @@index([suratKeluarId])
+  @@index([suratLampiranId])
+  @@index([tahapProses])
   @@index([createdAt])
 }
 
-// ==================== OPTIONAL: SETTINGS ====================
+// ==================== SETTINGS ====================
 
 model Settings {
-  id        String   @id @default(uuid())
-  key       String   @unique // Setting key (e.g., "nomor_surat_format")
-  value     String   @db.Text // Setting value
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String              @id @default(uuid())
+  key             String              @unique
+  value           String              @db.Text
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@map("settings")
 }
 
-// ==================== OPTIONAL: ARSIP ====================
+// ==================== ARSIP ====================
 
 model Arsip {
-  id             String   @id @default(uuid())
-  tahun          Int      // Tahun arsip
-  kategori       String   // Kategori arsip
-  nomorSurat     String   // Nomor surat
-  perihal        String   @db.Text
-  filePath       String?  // Path file arsip
-  keterangan     String?  @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String              @id @default(uuid())
+  tahun           Int
+  kategori        String
+  nomorSurat      String
+  perihal         String              @db.Text
+  filePath        String?
+  keterangan      String?             @db.Text
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@map("arsip")
   @@index([tahun])
