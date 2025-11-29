@@ -1,5 +1,5 @@
 // src/controllers/authController.js
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 const { successResponse, errorResponse } = require('../utils/response');
@@ -252,6 +252,11 @@ const generatePasswordVariants = async (req, res, next) => {
  */
 const testPasswordVariants = async (req, res, next) => {
   try {
+    // Only allow this endpoint in non-production environments
+    if (process.env.NODE_ENV === 'production') {
+      return errorResponse(res, 'Endpoint ini hanya tersedia di lingkungan development', 403);
+    }
+
     const { username } = req.body;
     if (!username) return errorResponse(res, 'Username harus disertakan', 400);
 

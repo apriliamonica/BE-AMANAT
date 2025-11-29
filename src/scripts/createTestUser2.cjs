@@ -13,11 +13,9 @@ const { v4: uuidv4 } = require('uuid');
     const id = uuidv4();
     const now = new Date();
 
-    const res = await prisma.$queryRaw`
-      INSERT INTO users (id, name, email, username, password, role, updatedAt)
-      VALUES (${id}, ${'Admin User'}, ${'admin@example.com'}, ${username}, ${hash}, ${role}, ${now})
-      RETURNING id, username, role
-    `;
+    const sql = `INSERT INTO users (id, name, email, username, password, role, "updatedAt")\n      VALUES ('${id}', 'Admin User', 'admin@example.com', '${username}', '${hash}', '${role}'::"Role", '${now.toISOString()}')\n      RETURNING id, username, role`;
+
+    const res = await prisma.$queryRawUnsafe(sql);
 
     console.log('Inserted:', res);
     process.exit(0);
