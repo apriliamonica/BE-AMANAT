@@ -27,3 +27,23 @@ class SuratKeluarService {
       const existingNomor = await prisma.suratKeluar.findUnique({
         where: { nomorSurat }
       });
+
+           // Create surat keluar
+      const suratKeluar = await prisma.suratKeluar.create({
+        data: {
+          nomorAgenda,
+          nomorSurat,
+          tanggalSurat: new Date(tanggalSurat),
+          tujuanSurat,
+          alamatTujuan,
+          kontakTujuan,
+          emailTujuan,
+          perihal,
+          isiSurat,
+          kategori,
+          prioritas,
+          tembusan,
+          status: 'DRAFT',
+          createdById: userId
+        }
+      });
