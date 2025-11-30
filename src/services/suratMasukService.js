@@ -31,3 +31,20 @@ class SuratMasukService {
       if (existingNomor) {
         throw new Error(`Nomor surat ${nomorSurat} sudah ada di sistem`);
       }
+
+      // Create surat masuk
+      const suratMasuk = await prisma.suratMasuk.create({
+        data: {
+          nomorAgenda,
+          nomorSurat,
+          tanggalSurat: new Date(tanggalSurat),
+          asalSurat,
+          namaPengirim,
+          kontakPengirim,
+          perihal,
+          kategori,
+          prioritas,
+          status: 'DITERIMA',
+          createdById: userId
+        }
+      });
