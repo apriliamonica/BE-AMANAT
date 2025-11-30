@@ -84,7 +84,7 @@ class SuratMasukService {
 
       const skip = (page - 1) * limit;
 
-            // Build where clause
+       // Build where clause
       const where = {};
 
       if (status) where.status = status;
@@ -98,25 +98,26 @@ class SuratMasukService {
           { perihal: { contains: search, mode: 'insensitive' } }
         ];
       }
+
       const [suratMasuk, total] = await Promise.all([
-  prisma.suratMasuk.findMany(...),
-  prisma.suratMasuk.count({ where })
-]);
-
-include: {
-  createdBy: {
-    select: { id: true, name: true, role: true }
-  },
-  tracking: {
-    orderBy: { createdAt: 'desc' }
-  },
-  disposisi: {
-    include: {
-      toUser: { select: { name: true, role: true } }
-    }
-  }
-}
-
-orderBy: { createdAt: 'desc' }
-skip,
-take: limit,
+        prisma.suratMasuk.findMany({
+          where,
+          skip,
+          take: limit,
+          include: {
+            createdBy: {
+              select: { id: true, name: true, role: true }
+            },
+            tracking: {
+              orderBy: { createdAt: 'desc' }
+            },
+            disposisi: {
+              include: {
+                toUser: { select: { name: true, role: true } }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.suratMasuk.count({ where })
+      ]);
