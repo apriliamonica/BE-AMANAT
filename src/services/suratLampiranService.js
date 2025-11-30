@@ -19,3 +19,6 @@ class SuratLampiranService {
       if (!userRole.includes('KEPALA_BAGIAN')) {
         throw new Error('Hanya Kepala Bagian yang dapat membuat surat lampiran');
       }
+
+            // Generate nomor agenda
+      const nomorAgenda = await this.generateNomorAgendaLampiran(kodeBagian);
