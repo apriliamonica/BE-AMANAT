@@ -1,4 +1,4 @@
-import { AuthService } from "../services/AuthService.js";
+import { AuthService } from "../services/auth.service.js";
 import { ApiResponse } from "../utils/response.js";
 import { validateRequest } from "../utils/validators.js";
 import {
