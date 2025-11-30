@@ -165,3 +165,29 @@ class DisposisiService {
       throw error;
     }
   }
+
+
+  /**
+   * Update status disposisi
+   */
+  async updateDisposisiStatus(disposisiId, newStatus, userId, catatan = '') {
+    try {
+      const disposisi = await prisma.disposisi.findUnique({
+        where: { id: disposisiId }
+      });
+
+      if (!disposisi) {
+        throw new Error('Disposisi tidak ditemukan');
+      }
+
+      const updated = await prisma.disposisi.update({
+        where: { id: disposisiId },
+        data: {
+          status: newStatus,
+          updatedAt: new Date()
+        },
+        include: {
+          fromUser: { select: { name: true } },
+          toUser: { select: { name: true } }
+        }
+      });
