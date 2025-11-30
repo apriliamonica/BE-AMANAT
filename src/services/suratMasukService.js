@@ -83,3 +83,10 @@ class SuratMasukService {
       } = filters;
 
       const skip = (page - 1) * limit;
+
+            // Build where clause
+      const where = {};
+
+      if (status) where.status = status;
+      if (kategori) where.kategori = kategori;
+      if (prioritas) where.prioritas = prioritas;
