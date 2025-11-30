@@ -94,3 +94,23 @@ class DisposisiService {
     }
   }
 
+  /**
+   * Get disposisi dengan filter
+   */
+  async getDisposisi(filters = {}, userId, userRole) {
+    try {
+      const {
+        status = 'PENDING',
+        jenisDispo,
+        page = 1,
+        limit = 10,
+        forMe = false
+      } = filters;
+
+      const skip = (page - 1) * limit;
+
+      const where = {};
+
+      if (status) where.status = status;
+      if (jenisDispo) where.jenisDispo = jenisDispo;
+
