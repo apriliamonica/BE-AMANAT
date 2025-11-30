@@ -191,3 +191,19 @@ class SuratMasukService {
       throw error;
     }
   }
+   /**
+   * Update status surat masuk (ke tahap berikutnya)
+   * Sekretaris Kantor: DITERIMA -> DIPROSES
+   * Ketua: DIPROSES -> DISPOSISI_KETUA
+   * Sekpengurus: DISPOSISI_KETUA -> DISPOSISI_SEKPENGURUS
+   * Kabag: DISPOSISI_SEKPENGURUS -> DISPOSISI_KABAG
+   */
+  async updateStatusSurat(suratMasukId, newStatus, userId, userRole) {
+    try {
+      const surat = await prisma.suratMasuk.findUnique({
+        where: { id: suratMasukId }
+      });
+
+      if (!surat) {
+        throw new Error('Surat masuk tidak ditemukan');
+      }
