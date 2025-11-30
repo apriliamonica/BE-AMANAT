@@ -47,3 +47,24 @@ class SuratLampiranService {
         }
       });
 
+         // Create tracking
+      await prisma.trackingSurat.create({
+        data: {
+          suratLampiranId: suratLampiran.id,
+          tahapProses: 'DRAFT',
+          posisiSaat: `Kepala Bagian ${kodeBagian}`,
+          aksiDilakukan: 'Membuat surat lampiran',
+          statusTracking: 'DRAFT',
+          createdById: userId
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Surat lampiran berhasil dibuat',
+        data: suratLampiran
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
