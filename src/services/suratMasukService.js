@@ -19,5 +19,6 @@ class SuratMasukService {
         kategori,
         prioritas = 'SEDANG'
       } = data;
-    }
-}
+
+       // Generate nomor agenda otomatis
+      const nomorAgenda = await this.generateNomorAgenda();
