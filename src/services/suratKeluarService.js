@@ -126,3 +126,25 @@ class SuratKeluarService {
         }),
         prisma.suratKeluar.count({ where })
       ]);
+
+       // Add status per role
+      const suratWithRoleStatus = suratKeluar.map(surat => ({
+        ...surat,
+        statusForMe: this.getStatusPerRole(surat, userRole)
+      }));
+
+      return {
+        success: true,
+        data: suratWithRoleStatus,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
