@@ -190,4 +190,51 @@ class SuratKeluarService {
       throw error;
     }
   }
+/**
+   * Update status surat keluar
+   */
+  async updateStatusSurat(suratKeluarId, newStatus, userId, userRole) {
+    try {
+      const surat = await prisma.suratKeluar.findUnique({
+        where: { id: suratKeluarId }
+      });
+
+      if (!surat) {
+        throw new Error('Surat keluar tidak ditemukan');
+      }
+
+      const validTransitions = this.getValidStatusTransitions(surat.status, userRole);
+      if (!validTransitions.includes(newStatus)) {
+        throw new Error(`Transisi status tidak diperbolehkan: ${surat.status} -> ${newStatus}`);
+      }
+
+      const updated = await prisma.suratKeluar.update({
+        where: { id: suratKeluarId },
+        data: {
+          status: newStatus,
+          tanggalDikirim: newStatus === 'TERKIRIM' ? new Date() : null,
+          updatedAt: new Date()
+        }
+      });
+
+      await prisma.trackingSurat.create({
+        data: {
+          suratKeluarId: suratKeluarId,
+          tahapProses: newStatus,
+          posisiSaat: this.getPositionForStatus(newStatus),
+          aksiDilakukan: `Status diubah ke ${newStatus}`,
+          statusTracking: newStatus,
+          createdById: userId
+        }
+      });
+
+      return {
+        success: true,
+        message: `Status surat diubah ke ${newStatus}`,
+        data: updated
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 
