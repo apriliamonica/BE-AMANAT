@@ -102,5 +102,28 @@ router.put(
   ],
   authController.changePassword
 );
+/**
+ * @route   PUT /api/auth/change-password
+ * @desc    Change password
+ * @access  Private
+ */
+router.put(
+  "/change-password",
+  [
+    authenticate,
+    body("oldPassword").notEmpty().withMessage("Password lama harus diisi"),
+    body("newPassword")
+      .isLength({ min: 6 })
+      .withMessage("Password baru minimal 6 karakter"),
+    validate,
+  ],
+  authController.changePassword
+);
+
+console.log("Type of authController.register:", typeof authController.register);
+console.log("Type of authenticate middleware:", typeof authenticate);
+console.log("Type of validate middleware:", typeof validate);
+
+module.exports = router;
 
 module.exports = router;
