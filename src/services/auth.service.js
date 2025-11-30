@@ -1,5 +1,5 @@
 import { prisma } from "../config/index.js";
-import { hashPassword, comparePassword } from "../utils/index.js";
+import { hashPassword, comparePassword } from "../utils/password.js";
 import { generateToken } from "../config/jwt.js";
 
 export class AuthService {
