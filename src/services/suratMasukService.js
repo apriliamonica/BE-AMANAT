@@ -194,6 +194,7 @@ class SuratMasukService {
       throw error;
     }
   }
+
   /**
    * Update status surat masuk (ke tahap berikutnya)
    * Sekretaris Kantor: DITERIMA -> DIPROSES
@@ -210,6 +211,7 @@ class SuratMasukService {
       if (!surat) {
         throw new Error("Surat masuk tidak ditemukan");
       }
+
       // Validasi transisi status
       const validTransitions = this.getValidStatusTransitions(
         surat.status,
@@ -220,6 +222,7 @@ class SuratMasukService {
           `Transisi status dari ${surat.status} ke ${newStatus} tidak diperbolehkan`
         );
       }
+
       // Update status
       const updated = await prisma.suratMasuk.update({
         where: { id: suratMasukId },
@@ -228,6 +231,7 @@ class SuratMasukService {
           updatedAt: new Date(),
         },
       });
+
       // Create tracking
       const posisiMapping = {
         DITERIMA: "Sekretaris Kantor",
@@ -286,6 +290,7 @@ class SuratMasukService {
 
     return `SM-${yearMonth}-${String(nextNumber).padStart(4, "0")}`;
   }
+
   /**
    * Helper: Create tracking entry
    */
@@ -297,6 +302,7 @@ class SuratMasukService {
       },
     });
   }
+
   /**
    * Helper: Get status per role
    * Return status yang relevan untuk role user
