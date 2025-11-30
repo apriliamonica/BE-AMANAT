@@ -212,3 +212,13 @@ class SuratMasukService {
       if (!validTransitions.includes(newStatus)) {
         throw new Error(`Transisi status dari ${surat.status} ke ${newStatus} tidak diperbolehkan`);
       }
+   // Update status
+      const updated = await prisma.suratMasuk.update({
+        where: { id: suratMasukId },
+        data: {
+          status: newStatus,
+          updatedAt: new Date()
+        }
+      });
+
+      
