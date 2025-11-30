@@ -98,3 +98,7 @@ class SuratMasukService {
           { perihal: { contains: search, mode: 'insensitive' } }
         ];
       }
+      const [suratMasuk, total] = await Promise.all([
+  prisma.suratMasuk.findMany(...),
+  prisma.suratMasuk.count({ where })
+]);
