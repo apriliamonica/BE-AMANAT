@@ -207,3 +207,8 @@ class SuratMasukService {
       if (!surat) {
         throw new Error('Surat masuk tidak ditemukan');
       }
+            // Validasi transisi status
+      const validTransitions = this.getValidStatusTransitions(surat.status, userRole);
+      if (!validTransitions.includes(newStatus)) {
+        throw new Error(`Transisi status dari ${surat.status} ke ${newStatus} tidak diperbolehkan`);
+      }
