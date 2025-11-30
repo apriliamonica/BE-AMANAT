@@ -265,3 +265,67 @@ class SuratKeluarService {
 
     return `SK-${yearMonth}-${String(nextNumber).padStart(4, '0')}`;
   }
+
+  /**
+   * Helper: Get status per role
+   */
+  getStatusPerRole(surat, userRole) {
+    const statusMapping = {
+      'ADMIN': {
+        'DRAFT': 'DRAFT DIBUAT - MONITORING',
+        'REVIEW_SEKPENGURUS': 'DI SEKPENGURUS - REVIEW',
+        'LAMPIRAN_KABAG': 'DI KABAG - UPLOAD LAMPIRAN',
+        'REVIEW_KETUA': 'DI KETUA - REVIEW & TTD',
+        'TERKIRIM': 'TERKIRIM - SELESAI',
+        'REVISI': 'REVISI',
+        'DIBATALKAN': 'DIBATALKAN'
+      },
+      'SEKRETARIS_PENGURUS': {
+        'DRAFT': 'MENUNGGU DRAFT',
+        'REVIEW_SEKPENGURUS': 'PERLU REVIEW',
+        'LAMPIRAN_KABAG': 'LAMPIRAN REQUEST',
+        'REVIEW_KETUA': 'LAMPIRAN DITERIMA - KE KETUA',
+        'TERKIRIM': 'TERKIRIM - SELESAI',
+        'REVISI': 'REVISI',
+        'DIBATALKAN': 'DIBATALKAN'
+      },
+      'KEPALA_BAGIAN_PSDM': {
+        'DRAFT': 'BELUM TIBA',
+        'REVIEW_SEKPENGURUS': 'BELUM TIBA',
+        'LAMPIRAN_KABAG': 'UPLOAD LAMPIRAN DIPERLUKAN',
+        'REVIEW_KETUA': 'UPLOAD SELESAI',
+        'TERKIRIM': 'TERKIRIM - SELESAI',
+        'REVISI': 'REVISI',
+        'DIBATALKAN': 'DIBATALKAN'
+      },
+      'KEPALA_BAGIAN_KEUANGAN': {
+        'DRAFT': 'BELUM TIBA',
+        'REVIEW_SEKPENGURUS': 'BELUM TIBA',
+        'LAMPIRAN_KABAG': 'UPLOAD LAMPIRAN DIPERLUKAN',
+        'REVIEW_KETUA': 'UPLOAD SELESAI',
+        'TERKIRIM': 'TERKIRIM - SELESAI',
+        'REVISI': 'REVISI',
+        'DIBATALKAN': 'DIBATALKAN'
+      },
+      'KEPALA_BAGIAN_UMUM': {
+        'DRAFT': 'BELUM TIBA',
+        'REVIEW_SEKPENGURUS': 'BELUM TIBA',
+        'LAMPIRAN_KABAG': 'UPLOAD LAMPIRAN DIPERLUKAN',
+        'REVIEW_KETUA': 'UPLOAD SELESAI',
+        'TERKIRIM': 'TERKIRIM - SELESAI',
+        'REVISI': 'REVISI',
+        'DIBATALKAN': 'DIBATALKAN'
+      },
+      'KETUA_PENGURUS': {
+        'DRAFT': 'BELUM TIBA',
+        'REVIEW_SEKPENGURUS': 'MENUNGGU GILIRAN',
+        'LAMPIRAN_KABAG': 'MENUNGGU KELENGKAPAN',
+        'REVIEW_KETUA': 'PERLU REVIEW & TTD',
+        'TERKIRIM': 'TTD SELESAI - TERKIRIM',
+        'REVISI': 'REVISI',
+        'DIBATALKAN': 'DIBATALKAN'
+      }
+    };
+
+    return statusMapping[userRole]?.[surat.status] || 'UNKNOWN';
+  }
