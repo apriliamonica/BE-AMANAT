@@ -2,7 +2,7 @@
 
 import express from "express";
 // Sesuaikan path import di bawah ini jika file database Anda ada di lokasi lain
-import prisma from "./config/database.cjs";
+import prisma from "./config/database.js";
 import cors from "cors";
 
 // Import rute Anda (pastikan file rutenya juga ES Modules/gunakan import/export default)

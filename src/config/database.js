@@ -1,15 +1,16 @@
-// src/config/database.js
-const { PrismaClient } = require('@prisma/client');
+// src/config/database.js (Versi ES Module)
 
-const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === 'development' 
-    ? ['query', 'info', 'warn', 'error'] 
-    : ['error'],
-});
+import { PrismaClient } from "@prisma/client";
 
-// Handle graceful shutdown
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
-});
+const prisma = new PrismaClient();
 
-module.exports = prisma;
+// Tambahkan kode lifecycle hooks jika diperlukan (ini opsional tapi disarankan)
+prisma
+  .$connect()
+  .then(() => console.log("Database connected successfully"))
+  .catch((err) => console.error("Database connection error:", err));
+
+// Gunakan export default
+export default prisma;
+
+// Hapus baris lama: module.exports = prisma;
