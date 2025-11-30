@@ -61,3 +61,11 @@ class DisposisiService {
           toUser: { select: { name: true, role: true } }
         }
       });
+
+            // Update surat status menjadi disposisi
+      if (suratMasukId && tahapProses === 'DIPROSES') {
+        await prisma.suratMasuk.update({
+          where: { id: suratMasukId },
+          data: { status: 'DISPOSISI_KETUA' }
+        });
+      }
