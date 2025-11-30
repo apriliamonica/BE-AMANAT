@@ -69,3 +69,28 @@ class DisposisiService {
           data: { status: 'DISPOSISI_KETUA' }
         });
       }
+
+
+      // Create tracking
+      await prisma.trackingSurat.create({
+        data: {
+          suratMasukId: suratMasukId || null,
+          suratKeluarId: suratKeluarId || null,
+          tahapProses: `DISPOSISI_${jenisDispo}`,
+          posisiSaat: disposisi.toUser.name,
+          aksiDilakukan: `Disposisi dikirim ke ${disposisi.toUser.name}: ${instruksi.substring(0, 50)}...`,
+          statusTracking: 'PENDING',
+          createdById: userId
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Disposisi berhasil dibuat',
+        data: disposisi
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
