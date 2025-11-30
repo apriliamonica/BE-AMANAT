@@ -48,3 +48,22 @@ class SuratMasukService {
           createdById: userId
         }
       });
+
+            // Create tracking entry
+      await this.createTracking({
+        suratMasukId: suratMasuk.id,
+        tahapProses: 'DITERIMA',
+        posisiSaat: 'Sekretaris Kantor',
+        aksiDilakukan: 'Menerima dan input surat ke sistem',
+        statusTracking: 'DITERIMA'
+      }, userId);
+
+      return {
+        success: true,
+        message: 'Surat masuk berhasil dibuat',
+        data: suratMasuk
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
