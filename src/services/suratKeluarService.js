@@ -21,5 +21,5 @@ class SuratKeluarService {
         prioritas = 'SEDANG',
         tembusan
       } = data; 
-    }
-}
+      // Generate nomor agenda otomatis
+      const nomorAgenda = await this.generateNomorAgenda();
