@@ -1,318 +1,279 @@
 // src/controllers/authController.js
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const prisma = require("../config/database");
-const { successResponse, errorResponse } = require("../utils/response");
+import authService from "../services/auth.service.js";
+import { successResponse, errorResponse } from "../utils/response.js";
+import { validationResult } from "express-validator";
 
-/**
- * Register new user
- */
-const register = async (req, res, next) => {
-  try {
-    const { name, email, username, password, role, bagian, jabatan } = req.body;
+class AuthController {
+  /**
+   * Register Controller
+   * POST /api/auth/register
+   */
+  async register(req, res) {
+    try {
+      // 1. Cek validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return errorResponse(res, 400, "Validasi gagal", errors.array());
+      }
 
-    // Check if email or username already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
-    });
-
-    if (existingUser) {
-      return errorResponse(res, "Email atau username sudah digunakan", 400);
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
+      // 2. Extract data
+      const {
         name,
         email,
         username,
-        password: hashedPassword,
-        role: role || "STAFF",
-        bagian,
+        password,
+        role,
         jabatan,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        role: true,
-        bagian: true,
-        jabatan: true,
-        createdAt: true,
-      },
-    });
+        kodeBagian,
+        phone,
+      } = req.body;
 
-    return successResponse(res, user, "User berhasil dibuat", 201);
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Login
- */
-const login = async (req, res, next) => {
-  try {
-    const { username, password } = req.body;
-
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { username },
-    });
-
-    if (!user) {
-      return errorResponse(res, "Username atau password salah", 401);
-    }
-
-    if (!user.isActive) {
-      return errorResponse(res, "Akun tidak aktif", 403);
-    }
-
-    // Check password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
-    if (!isPasswordValid) {
-      return errorResponse(res, "Username atau password salah", 401);
-    }
-
-    // Generate JWT token
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
-    });
-
-    // Return user data without password
-    const userData = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      username: user.username,
-      role: user.role,
-      bagian: user.bagian,
-      jabatan: user.jabatan,
-    };
-
-    return successResponse(res, { user: userData, token }, "Login berhasil");
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Get current user profile
- */
-const getProfile = async (req, res, next) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        role: true,
-        bagian: true,
-        jabatan: true,
-        phone: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return successResponse(res, user, "Profile berhasil diambil");
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Update profile
- */
-const updateProfile = async (req, res, next) => {
-  try {
-    const { name, email, phone, bagian, jabatan } = req.body;
-
-    const user = await prisma.user.update({
-      where: { id: req.user.id },
-      data: {
+      // 3. Call service
+      const newUser = await authService.register({
         name,
         email,
-        phone,
-        bagian,
+        username,
+        password,
+        role,
         jabatan,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        username: true,
-        role: true,
-        bagian: true,
-        jabatan: true,
-        phone: true,
-      },
-    });
+        kodeBagian,
+        phone,
+      });
 
-    return successResponse(res, user, "Profile berhasil diupdate");
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Change password
- */
-const changePassword = async (req, res, next) => {
-  try {
-    const { oldPassword, newPassword } = req.body;
-
-    // Get user with password
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-    });
-
-    // Check old password
-    const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
-
-    if (!isPasswordValid) {
-      return errorResponse(res, "Password lama salah", 400);
+      // 4. Return success response
+      return successResponse(res, 201, "Registrasi berhasil", newUser);
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
     }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password
-    await prisma.user.update({
-      where: { id: req.user.id },
-      data: { password: hashedPassword },
-    });
-
-    return successResponse(res, null, "Password berhasil diubah");
-  } catch (error) {
-    next(error);
   }
-};
 
-/**
- * Generate password variations for a given username
- * This does NOT change the user's password — it only generates possible variants.
- */
-const generatePasswordVariants = async (req, res, next) => {
-  try {
-    const { username } = req.body;
-    if (!username) return errorResponse(res, "Username harus disertakan", 400);
+  /**
+   * Login Controller
+   * POST /api/auth/login
+   */
+  async login(req, res) {
+    try {
+      // 1. Cek validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return errorResponse(res, 400, "Validasi gagal", errors.array());
+      }
 
-    const base = String(username);
-    const reversed = base.split("").reverse().join("");
-    const year = new Date().getFullYear();
+      // 2. Extract data
+      const { email, password } = req.body;
 
-    // Common patterns
-    const variants = [
-      base,
-      base + "123",
-      base + "1234",
-      base + "12345",
-      base + "!",
-      base + "@" + (year % 100),
-      base + "@" + year,
-      base + "#2025",
-      base + "2025",
-      reversed,
-      reversed + "123",
-      "Password" + base,
-      base + "!" + (year % 100),
-      base + "2024",
-      base + "_admin",
-      base + "$",
-    ];
+      // 3. Call service
+      const result = await authService.login(email, password);
 
-    // Deduplicate while preserving order
-    const dedup = [...new Set(variants)];
+      // 4. Set token di cookie (optional)
+      res.cookie("token", result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+      });
 
-    return successResponse(
-      res,
-      { variants: dedup },
-      "Variasi kata sandi dihasilkan"
-    );
-  } catch (error) {
-    next(error);
+      // 5. Return success response
+      return successResponse(res, 200, "Login berhasil", result);
+    } catch (error) {
+      return errorResponse(res, 401, error.message);
+    }
   }
-};
 
-/**
- * Test generated variants against stored password hash for a username.
- * WARNING: returns which variants match — use only in development/testing.
- */
-const testPasswordVariants = async (req, res, next) => {
-  try {
-    // Only allow this endpoint in non-production environments
-    if (process.env.NODE_ENV === "production") {
-      return errorResponse(
+  /**
+   * Get Current User Controller
+   * GET /api/auth/me
+   * Requires: Authorization header
+   */
+  async getCurrentUser(req, res) {
+    try {
+      // 1. User sudah di-decode di middleware auth
+      const userId = req.user.id;
+
+      // 2. Get user data
+      const user = await authService.getUserById(userId);
+
+      // 3. Return success response
+      return successResponse(res, 200, "Data user", user);
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
+    }
+  }
+
+  /**
+   * Refresh Token Controller
+   * POST /api/auth/refresh-token
+   */
+  async refreshToken(req, res) {
+    try {
+      // 1. Get token dari header atau body
+      const token =
+        req.headers.authorization?.replace("Bearer ", "") || req.body.token;
+
+      if (!token) {
+        return errorResponse(res, 401, "Token tidak ditemukan");
+      }
+
+      // 2. Call service
+      const result = await authService.refreshToken(token);
+
+      // 3. Return success response
+      return successResponse(res, 200, "Token diperbarui", result);
+    } catch (error) {
+      return errorResponse(res, 401, error.message);
+    }
+  }
+
+  /**
+   * Update Profile Controller
+   * PUT /api/auth/profile
+   * Requires: Authorization header
+   */
+  async updateProfile(req, res) {
+    try {
+      // 1. Cek validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return errorResponse(res, 400, "Validasi gagal", errors.array());
+      }
+
+      // 2. Extract data
+      const userId = req.user.id;
+      const { name, phone, jabatan } = req.body;
+
+      // 3. Call service
+      const updatedUser = await authService.updateProfile(userId, {
+        name,
+        phone,
+        jabatan,
+      });
+
+      // 4. Return success response
+      return successResponse(
         res,
-        "Endpoint ini hanya tersedia di lingkungan development",
-        403
+        200,
+        "Profile berhasil diupdate",
+        updatedUser
       );
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
     }
-
-    const { username } = req.body;
-    if (!username) return errorResponse(res, "Username harus disertakan", 400);
-
-    const user = await prisma.user.findUnique({ where: { username } });
-    if (!user) return errorResponse(res, "User tidak ditemukan", 404);
-
-    // Reuse generator
-    const base = String(username);
-    const reversed = base.split("").reverse().join("");
-    const year = new Date().getFullYear();
-
-    const candidates = [
-      base,
-      base + "123",
-      base + "1234",
-      base + "12345",
-      base + "!",
-      base + "@" + (year % 100),
-      base + "@" + year,
-      base + "#2025",
-      base + "2025",
-      reversed,
-      reversed + "123",
-      "Password" + base,
-      base + "!" + (year % 100),
-      base + "2024",
-      base + "_admin",
-      base + "$",
-    ];
-
-    const matches = [];
-    for (const cand of candidates) {
-      // eslint-disable-next-line no-await-in-loop
-      const ok = await bcrypt.compare(cand, user.password);
-      if (ok) matches.push(cand);
-    }
-
-    return successResponse(
-      res,
-      { matches, tested: candidates.length },
-      "Hasil pengujian variasi kata sandi"
-    );
-  } catch (error) {
-    next(error);
   }
-};
 
-module.exports = {
-  register,
-  login,
-  getProfile,
-  updateProfile,
-  changePassword,
-  generatePasswordVariants,
-  testPasswordVariants,
-};
+  /**
+   * Change Password Controller
+   * POST /api/auth/change-password
+   * Requires: Authorization header
+   */
+  async changePassword(req, res) {
+    try {
+      // 1. Cek validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return errorResponse(res, 400, "Validasi gagal", errors.array());
+      }
+
+      // 2. Extract data
+      const userId = req.user.id;
+      const { oldPassword, newPassword } = req.body;
+
+      // 3. Call service
+      const result = await authService.changePassword(
+        userId,
+        oldPassword,
+        newPassword
+      );
+
+      // 4. Return success response
+      return successResponse(res, 200, result.message);
+    } catch (error) {
+      return errorResponse(res, 400, error.message);
+    }
+  }
+
+  /**
+   * Logout Controller
+   * POST /api/auth/logout
+   */
+  async logout(req, res) {
+    try {
+      // 1. Clear cookie
+      res.clearCookie("token");
+
+      // 2. Return success response
+      return successResponse(res, 200, "Logout berhasil");
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
+    }
+  }
+
+  /**
+   * Get All Users Controller (Admin only)
+   * GET /api/auth/users
+   * Requires: Authorization header + Admin role
+   */
+  async getAllUsers(req, res) {
+    try {
+      // 1. Extract query params
+      const { role, search, limit = 10, offset = 0 } = req.query;
+
+      // 2. Call service
+      const result = await authService.getAllUsers({
+        role,
+        search,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+
+      // 3. Return success response
+      return successResponse(res, 200, "Daftar user", result);
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
+    }
+  }
+
+  /**
+   * Deactivate User Controller (Admin only)
+   * PATCH /api/auth/users/:userId/deactivate
+   */
+  async deactivateUser(req, res) {
+    try {
+      // 1. Extract userId
+      const { userId } = req.params;
+
+      // 2. Call service
+      const updatedUser = await authService.toggleUserStatus(userId, false);
+
+      // 3. Return success response
+      return successResponse(
+        res,
+        200,
+        "User berhasil dinonaktifkan",
+        updatedUser
+      );
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
+    }
+  }
+
+  /**
+   * Activate User Controller (Admin only)
+   * PATCH /api/auth/users/:userId/activate
+   */
+  async activateUser(req, res) {
+    try {
+      // 1. Extract userId
+      const { userId } = req.params;
+
+      // 2. Call service
+      const updatedUser = await authService.toggleUserStatus(userId, true);
+
+      // 3. Return success response
+      return successResponse(res, 200, "User berhasil diaktifkan", updatedUser);
+    } catch (error) {
+      return errorResponse(res, 500, error.message);
+    }
+  }
+}
+
+export default new AuthController();
