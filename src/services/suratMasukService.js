@@ -286,3 +286,61 @@ class SuratMasukService {
       }
     });
   }
+/**
+   * Helper: Get status per role
+   * Return status yang relevan untuk role user
+   */
+  getStatusPerRole(surat, userRole) {
+    const statusMapping = {
+      'ADMIN': {
+        'DITERIMA': 'SELESAI INPUT',
+        'DIPROSES': 'SEDANG VERIFIKASI',
+        'DISPOSISI_KETUA': 'DI KETUA (MONITORING)',
+        'DISPOSISI_SEKPENGURUS': 'DI SEKPENGURUS (MONITORING)',
+        'DISPOSISI_KABAG': 'DI KABAG (MONITORING)',
+        'SELESAI': 'SELESAI'
+      },
+      'KETUA_PENGURUS': {
+        'DITERIMA': 'MENUNGGU VERIFIKASI',
+        'DIPROSES': 'PERLU DISPOSISI',
+        'DISPOSISI_KETUA': 'SELESAI DISPOSISI',
+        'DISPOSISI_SEKPENGURUS': 'SELESAI',
+        'DISPOSISI_KABAG': 'SELESAI',
+        'SELESAI': 'SELESAI'
+      },
+      'SEKRETARIS_PENGURUS': {
+        'DITERIMA': 'BELUM TIBA',
+        'DIPROSES': 'MENUNGGU GILIRAN',
+        'DISPOSISI_KETUA': 'MENUNGGU GILIRAN',
+        'DISPOSISI_SEKPENGURUS': 'PERLU KOORDINASI',
+        'DISPOSISI_KABAG': 'SELESAI KOORDINASI',
+        'SELESAI': 'SELESAI'
+      },
+      'KEPALA_BAGIAN_PSDM': {
+        'DITERIMA': 'BELUM TIBA',
+        'DIPROSES': 'BELUM TIBA',
+        'DISPOSISI_KETUA': 'BELUM TIBA',
+        'DISPOSISI_SEKPENGURUS': 'MENUNGGU GILIRAN',
+        'DISPOSISI_KABAG': 'TINDAKAN DIPERLUKAN',
+        'SELESAI': 'SELESAI PROSES'
+      },
+      'KEPALA_BAGIAN_KEUANGAN': {
+        'DITERIMA': 'BELUM TIBA',
+        'DIPROSES': 'BELUM TIBA',
+        'DISPOSISI_KETUA': 'BELUM TIBA',
+        'DISPOSISI_SEKPENGURUS': 'MENUNGGU GILIRAN',
+        'DISPOSISI_KABAG': 'TINDAKAN DIPERLUKAN',
+        'SELESAI': 'SELESAI PROSES'
+      },
+      'KEPALA_BAGIAN_UMUM': {
+        'DITERIMA': 'BELUM TIBA',
+        'DIPROSES': 'BELUM TIBA',
+        'DISPOSISI_KETUA': 'BELUM TIBA',
+        'DISPOSISI_SEKPENGURUS': 'MENUNGGU GILIRAN',
+        'DISPOSISI_KABAG': 'TINDAKAN DIPERLUKAN',
+        'SELESAI': 'SELESAI PROSES'
+      }
+    };
+
+    return statusMapping[userRole]?.[surat.status] || 'UNKNOWN';
+  }
