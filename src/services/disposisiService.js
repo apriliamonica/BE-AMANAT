@@ -191,3 +191,30 @@ class DisposisiService {
           toUser: { select: { name: true } }
         }
       });
+
+
+      // Create tracking untuk update disposisi
+      const suitType = disposisi.suratMasukId ? 'suratMasukId' : 'suratKeluarId';
+      const suitId = disposisi.suratMasukId || disposisi.suratKeluarId;
+
+      await prisma.trackingSurat.create({
+        data: {
+          [suitType]: suitId,
+          tahapProses: `DISPOSISI_${newStatus}`,
+          posisiSaat: disposisi.toUser.name || 'Unknown',
+          aksiDilakukan: `Disposisi ${newStatus}${catatan ? ': ' + catatan : ''}`,
+          statusTracking: newStatus,
+          createdById: userId
+        }
+      });
+
+      return {
+        success: true,
+        message: `Disposisi status diubah ke ${newStatus}`,
+        data: updated
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
