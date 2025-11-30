@@ -148,3 +148,46 @@ class SuratKeluarService {
     }
   }
 
+
+  /**
+   * Get surat keluar by ID
+   */
+  async getSuratKeluarById(suratKeluarId) {
+    try {
+      const surat = await prisma.suratKeluar.findUnique({
+        where: { id: suratKeluarId },
+        include: {
+          createdBy: {
+            select: { id: true, name: true, email: true, role: true }
+          },
+          lampiran: {
+            select: {
+              id: true,
+              namaFile: true,
+              ukuran: true,
+              mimeType: true,
+              uploadedAt: true
+            }
+          },
+          tracking: {
+            include: {
+              createdBy: { select: { name: true, role: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      });
+
+      if (!surat) {
+        throw new Error('Surat keluar tidak ditemukan');
+      }
+
+      return {
+        success: true,
+        data: surat
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
