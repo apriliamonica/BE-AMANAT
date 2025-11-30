@@ -41,3 +41,23 @@ class DisposisiService {
       if (!surat) {
         throw new Error('Surat tidak ditemukan');
       }
+
+          // Create disposisi
+      const disposisi = await prisma.disposisi.create({
+        data: {
+          suratMasukId: suratMasukId || null,
+          suratKeluarId: suratKeluarId || null,
+          fromUserId: userId,
+          toUserId,
+          instruksi,
+          jenisDispo,
+          tahapProses,
+          prioritas,
+          tenggatWaktu: tenggatWaktu ? new Date(tenggatWaktu) : null,
+          status: 'PENDING'
+        },
+        include: {
+          fromUser: { select: { name: true, role: true } },
+          toUser: { select: { name: true, role: true } }
+        }
+      });
