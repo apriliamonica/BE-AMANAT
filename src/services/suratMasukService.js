@@ -67,3 +67,19 @@ class SuratMasukService {
       throw error;
     }
   }
+
+    /**
+   * Get surat masuk dengan filtering
+   */
+  async getSuratMasuk(filters = {}, userId, userRole) {
+    try {
+      const {
+        status,
+        kategori,
+        prioritas,
+        page = 1,
+        limit = 10,
+        search
+      } = filters;
+
+      const skip = (page - 1) * limit;
