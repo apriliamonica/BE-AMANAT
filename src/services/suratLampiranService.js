@@ -14,3 +14,8 @@ class SuratLampiranService {
         prioritas = 'SEDANG',
         suratKeluarRefId
       } = data;
+
+      // Validasi user adalah Kepala Bagian
+      if (!userRole.includes('KEPALA_BAGIAN')) {
+        throw new Error('Hanya Kepala Bagian yang dapat membuat surat lampiran');
+      }
