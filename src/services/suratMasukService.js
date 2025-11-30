@@ -220,5 +220,32 @@ class SuratMasukService {
           updatedAt: new Date()
         }
       });
+  // Create tracking
+      const posisiMapping = {
+        'DITERIMA': 'Sekretaris Kantor',
+        'DIPROSES': 'Sekretaris Kantor',
+        'DISPOSISI_KETUA': 'Ketua Yayasan',
+        'DISPOSISI_SEKPENGURUS': 'Sekretaris Pengurus',
+        'DISPOSISI_KABAG': 'Kepala Bagian',
+        'SELESAI': 'Arsip'
+      };
+
+      await this.createTracking({
+        suratMasukId: suratMasukId,
+        tahapProses: newStatus,
+        posisiSaat: posisiMapping[newStatus],
+        aksiDilakukan: `Surat dipindahkan ke status ${newStatus}`,
+        statusTracking: newStatus
+      }, userId);
+
+      return {
+        success: true,
+        message: `Status surat diubah menjadi ${newStatus}`,
+        data: updated
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 
       
