@@ -2,45 +2,90 @@
 
 /**
  * Success Response
+ * @param {Object} res - Express response object
+ * @param {number} statusCode - HTTP status code (default 200)
+ * @param {string} message - Success message
+ * @param {*} data - Response data (optional)
  */
-const successResponse = (res, data, message = 'Success', statusCode = 200) => {
+export const successResponse = (
+  res,
+  statusCode = 200,
+  message = "Sukses",
+  data = null
+) => {
   return res.status(statusCode).json({
     success: true,
+    statusCode,
     message,
-    data
+    data,
+    timestamp: new Date().toISOString(),
   });
 };
 
 /**
  * Error Response
+ * @param {Object} res - Express response object
+ * @param {number} statusCode - HTTP status code
+ * @param {string} message - Error message
+ * @param {*} errors - Error details (optional)
  */
-const errorResponse = (res, message = 'Error', statusCode = 500, errors = null) => {
+export const errorResponse = (
+  res,
+  statusCode = 500,
+  message = "Terjadi kesalahan",
+  errors = null
+) => {
   return res.status(statusCode).json({
     success: false,
+    statusCode,
     message,
-    errors
+    errors,
+    timestamp: new Date().toISOString(),
   });
 };
 
 /**
- * Pagination Response
+ * Paginated Response
+ * @param {Object} res - Express response object
+ * @param {number} statusCode - HTTP status code
+ * @param {string} message - Success message
+ * @param {Array} data - Array of items
+ * @param {number} total - Total count
+ * @param {number} limit - Items per page
+ * @param {number} offset - Current offset
  */
-const paginationResponse = (res, data, pagination, message = 'Success') => {
-  return res.status(200).json({
+export const paginatedResponse = (
+  res,
+  statusCode = 200,
+  message = "Sukses",
+  data = [],
+  total = 0,
+  limit = 10,
+  offset = 0
+) => {
+  const page = Math.floor(offset / limit) + 1;
+  const totalPages = Math.ceil(total / limit);
+
+  return res.status(statusCode).json({
     success: true,
+    statusCode,
     message,
     data,
     pagination: {
-      page: pagination.page,
-      limit: pagination.limit,
-      total: pagination.total,
-      totalPages: Math.ceil(pagination.total / pagination.limit)
-    }
+      total,
+      limit,
+      offset,
+      page,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    },
+    timestamp: new Date().toISOString(),
   });
 };
 
-module.exports = {
+export default {
   successResponse,
   errorResponse,
-  paginationResponse
+  paginatedResponse,
 };
