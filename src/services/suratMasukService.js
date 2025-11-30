@@ -248,4 +248,30 @@ class SuratMasukService {
     }
   }
 
-      
+    /**
+   * Helper: Generate nomor agenda
+   * Format: SM-YYYYMM-0001
+   */
+  async generateNomorAgenda() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const yearMonth = `${year}${month}`;
+
+    const lastAgenda = await prisma.suratMasuk.findFirst({
+      where: {
+        nomorAgenda: {
+          startsWith: `SM-${yearMonth}-`
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    let nextNumber = 1;
+    if (lastAgenda) {
+      const lastNumber = parseInt(lastAgenda.nomorAgenda.split('-')[2]);
+      nextNumber = lastNumber + 1;
+    }
+
+    return `SM-${yearMonth}-${String(nextNumber).padStart(4, '0')}`;
+  }   
