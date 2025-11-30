@@ -1,52 +1,58 @@
-// src/middleware/auth.js
-import jwt from "jsonwebtoken";
-import { errorResponse } from "../utils/response.js";
+import { verifyToken } from "../config/jwt.js";
+import { ApiResponse } from "../utils/response.js";
+import { prisma } from "../config/index.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-env";
+export class AuthMiddleware {
+  static async authenticate(req, res, next) {
+    try {
+      const authHeader = req.headers.authorization;
 
-/**
- * Auth Middleware - Verifikasi JWT Token
- * Harus ada di protected routes
- */
-const authMiddleware = (req, res, next) => {
-  try {
-    // 1. Ambil token dari header
-    const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return ApiResponse.error(res, "Token tidak ditemukan", 401);
+      }
 
-    if (!authHeader) {
-      return errorResponse(
+      const token = authHeader.split(" ")[1];
+      const decoded = verifyToken(token);
+
+      // Get user from database
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          email: true,
+          nama: true,
+          role: true,
+          fakultas: true,
+          prodi: true,
+        },
+      });
+
+      if (!user) {
+        return ApiResponse.error(res, "User tidak ditemukan", 401);
+      }
+
+      req.user = user;
+      next();
+    } catch (error) {
+      return ApiResponse.error(
         res,
-        401,
-        "Token tidak ditemukan. Gunakan header: Authorization: Bearer <token>"
+        error.message || "Token tidak valid",
+        error.statusCode || 401
       );
     }
-
-    // 2. Extract token (format: "Bearer <token>")
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : authHeader;
-
-    // 3. Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    // 4. Attach user data ke request
-    req.user = decoded;
-
-    // 5. Lanjut ke next handler
-    next();
-  } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      return errorResponse(
-        res,
-        401,
-        "Token sudah expired. Silakan login kembali"
-      );
-    }
-    if (error.name === "JsonWebTokenError") {
-      return errorResponse(res, 401, "Token tidak valid");
-    }
-    return errorResponse(res, 401, `Auth error: ${error.message}`);
   }
-};
 
-export default authMiddleware;
+  static authorize(...roles) {
+    return (req, res, next) => {
+      if (!req.user) {
+        return ApiResponse.error(res, "Unauthorized", 401);
+      }
+
+      if (!roles.includes(req.user.role)) {
+        return ApiResponse.error(res, "Anda tidak memiliki akses", 403);
+      }
+
+      next();
+    };
+  }
+}
