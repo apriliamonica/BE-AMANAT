@@ -1,11 +1,15 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 class TrackingService {
   /**
    * Get tracking lengkap untuk surat
    */
-  async getTrackingSurat(suratMasukId = null, suratKeluarId = null, suratLampiranId = null) {
+  async getTrackingSurat(
+    suratMasukId = null,
+    suratKeluarId = null,
+    suratLampiranId = null
+  ) {
     try {
       const where = {};
 
@@ -14,20 +18,20 @@ class TrackingService {
       if (suratLampiranId) where.suratLampiranId = suratLampiranId;
 
       if (!suratMasukId && !suratKeluarId && !suratLampiranId) {
-        throw new Error('Harus ada referensi surat');
+        throw new Error("Harus ada referensi surat");
       }
 
       const tracking = await prisma.trackingSurat.findMany({
         where,
         include: {
-          createdBy: { select: { name: true, role: true } }
+          createdBy: { select: { name: true, role: true } },
         },
-        orderBy: { createdAt: 'asc' }
+        orderBy: { createdAt: "asc" },
       });
 
       return {
         success: true,
-        data: tracking
+        data: tracking,
       };
     } catch (error) {
       throw error;
@@ -39,13 +43,7 @@ class TrackingService {
    */
   async getTrackingHistory(filters = {}) {
     try {
-      const {
-        tahapProses,
-        page = 1,
-        limit = 20,
-        startDate,
-        endDate
-      } = filters;
+      const { tahapProses, page = 1, limit = 20, startDate, endDate } = filters;
 
       const skip = (page - 1) * limit;
       const where = {};
@@ -65,19 +63,19 @@ class TrackingService {
           take: limit,
           include: {
             suratMasuk: {
-              select: { nomorSurat: true, perihal: true }
+              select: { nomorSurat: true, perihal: true },
             },
             suratKeluar: {
-              select: { nomorSurat: true, perihal: true }
+              select: { nomorSurat: true, perihal: true },
             },
             suratLampiran: {
-              select: { nomorSurat: true, perihal: true }
+              select: { nomorSurat: true, perihal: true },
             },
-            createdBy: { select: { name: true, role: true } }
+            createdBy: { select: { name: true, role: true } },
           },
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: "desc" },
         }),
-        prisma.trackingSurat.count({ where })
+        prisma.trackingSurat.count({ where }),
       ]);
 
       return {
@@ -87,14 +85,13 @@ class TrackingService {
           total,
           page,
           limit,
-          pages: Math.ceil(total / limit)
-        }
+          pages: Math.ceil(total / limit),
+        },
       };
     } catch (error) {
       throw error;
     }
   }
-
 
   /**
    * Get statistik tracking per tahap
@@ -102,20 +99,62 @@ class TrackingService {
   async getTrackingStats() {
     try {
       const stats = await prisma.trackingSurat.groupBy({
-        by: ['tahapProses'],
+        by: ["tahapProses"],
         _count: true,
         orderBy: {
           _count: {
-            id: 'desc'
-          }
-        }
+            id: "desc",
+          },
+        },
       });
 
       return {
         success: true,
-        data: stats
+        data: stats,
       };
     } catch (error) {
       throw error;
     }
   }
+
+  /**
+   * Get posisi surat saat ini
+   */
+  async getPositiSuratSaat(suratMasukId = null, suratKeluarId = null) {
+    try {
+      const where = {};
+
+      if (suratMasukId) where.suratMasukId = suratMasukId;
+      if (suratKeluarId) where.suratKeluarId = suratKeluarId;
+
+      if (!suratMasukId && !suratKeluarId) {
+        throw new Error("Harus ada referensi surat");
+      }
+
+      const lastTracking = await prisma.trackingSurat.findFirst({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          createdBy: { select: { name: true, role: true } },
+        },
+      });
+
+      if (!lastTracking) {
+        throw new Error("Tracking tidak ditemukan");
+      }
+
+      return {
+        success: true,
+        data: {
+          tahapProses: lastTracking.tahapProses,
+          posisiSaat: lastTracking.posisiSaat,
+          aksiTerakhir: lastTracking.aksiDilakukan,
+          lastUpdated: lastTracking.createdAt,
+          updatedBy: lastTracking.createdBy,
+        },
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+}
