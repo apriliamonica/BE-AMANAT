@@ -68,3 +68,44 @@ class SuratLampiranService {
       throw error;
     }
   }
+/**
+   * Update status surat lampiran
+   */
+  async updateStatusSuratLampiran(suratLampiranId, newStatus, userId) {
+    try {
+      const surat = await prisma.suratKeluarLampiran.findUnique({
+        where: { id: suratLampiranId }
+      });
+
+      if (!surat) {
+        throw new Error('Surat lampiran tidak ditemukan');
+      }
+
+      const updated = await prisma.suratKeluarLampiran.update({
+        where: { id: suratLampiranId },
+        data: {
+          status: newStatus,
+          updatedAt: new Date()
+        }
+      });
+
+      await prisma.trackingSurat.create({
+        data: {
+          suratLampiranId: suratLampiranId,
+          tahapProses: newStatus,
+          posisiSaat: `Kepala Bagian ${surat.kodeBagian}`,
+          aksiDilakukan: `Status diubah ke ${newStatus}`,
+          statusTracking: newStatus,
+          createdById: userId
+        }
+      });
+
+      return {
+        success: true,
+        message: `Status surat lampiran diubah ke ${newStatus}`,
+        data: updated
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
