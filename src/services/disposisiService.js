@@ -17,3 +17,8 @@ class DisposisiService {
         prioritas = 'SEDANG',
         tenggatWaktu
       } = data;
+
+      // Validasi: salah satu suratMasukId atau suratKeluarId harus ada
+      if (!suratMasukId && !suratKeluarId) {
+        throw new Error('Harus ada referensi surat masuk atau surat keluar');
+      }
