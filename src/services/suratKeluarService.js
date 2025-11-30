@@ -238,3 +238,30 @@ class SuratKeluarService {
     }
   }
 
+
+  /**
+   * Helper: Generate nomor agenda
+   */
+  async generateNomorAgenda() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const yearMonth = `${year}${month}`;
+
+    const lastAgenda = await prisma.suratKeluar.findFirst({
+      where: {
+        nomorAgenda: {
+          startsWith: `SK-${yearMonth}-`
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    let nextNumber = 1;
+    if (lastAgenda) {
+      const lastNumber = parseInt(lastAgenda.nomorAgenda.split('-')[2]);
+      nextNumber = lastNumber + 1;
+    }
+
+    return `SK-${yearMonth}-${String(nextNumber).padStart(4, '0')}`;
+  }
