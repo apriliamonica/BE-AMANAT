@@ -329,3 +329,35 @@ class SuratKeluarService {
 
     return statusMapping[userRole]?.[surat.status] || 'UNKNOWN';
   }
+
+
+  /**
+   * Helper: Get valid status transitions
+   */
+  getValidStatusTransitions(currentStatus, userRole) {
+    const transitions = {
+      'ADMIN': {
+        'DRAFT': ['REVIEW_SEKPENGURUS'],
+        'REVIEW_SEKPENGURUS': ['LAMPIRAN_KABAG', 'REVIEW_KETUA'],
+        'LAMPIRAN_KABAG': ['REVIEW_KETUA'],
+        'REVIEW_KETUA': ['TERKIRIM']
+      },
+      'SEKRETARIS_PENGURUS': {
+        'REVIEW_SEKPENGURUS': ['LAMPIRAN_KABAG', 'REVIEW_KETUA', 'REVISI']
+      },
+      'KETUA_PENGURUS': {
+        'REVIEW_KETUA': ['TERKIRIM', 'REVISI']
+      },
+      'KEPALA_BAGIAN_PSDM': {
+        'LAMPIRAN_KABAG': ['REVIEW_KETUA']
+      },
+      'KEPALA_BAGIAN_KEUANGAN': {
+        'LAMPIRAN_KABAG': ['REVIEW_KETUA']
+      },
+      'KEPALA_BAGIAN_UMUM': {
+        'LAMPIRAN_KABAG': ['REVIEW_KETUA']
+      }
+    };
+
+    return transitions[userRole]?.[currentStatus] || [];
+  }
