@@ -1,129 +1,149 @@
 // src/routes/authRoutes.js
-const express = require("express");
+import express from "express";
+import { body } from "express-validator";
+import authController from "../controllers/authController.js";
+import authMiddleware from "../middleware/auth.js";
+import { authorize } from "../middleware/authorize.js";
+
 const router = express.Router();
-const { body } = require("express-validator");
-const authController = require("../controllers/authController");
-const { authenticate } = require("../middleware/auth");
-const { validate } = require("../middleware/validate");
 
 /**
- * @route   POST /api/auth/register
- * @desc    Register new user (admin only)
- * @access  Public (should be protected in production)
+ * ==================== PUBLIC ROUTES ====================
+ */
+
+/**
+ * POST /api/auth/register
+ * Register user baru
+ * Body: { name, email, username, password, role, jabatan, kodeBagian?, phone? }
  */
 router.post(
   "/register",
   [
-    body("name").notEmpty().withMessage("Nama harus diisi"),
+    body("name").notEmpty().withMessage("Nama wajib diisi"),
     body("email").isEmail().withMessage("Email tidak valid"),
     body("username")
-      .notEmpty()
-      .withMessage("Username harus diisi")
       .isLength({ min: 3 })
       .withMessage("Username minimal 3 karakter"),
     body("password")
       .isLength({ min: 6 })
       .withMessage("Password minimal 6 karakter"),
-    validate,
+    body("role").notEmpty().withMessage("Role wajib diisi"),
+    body("jabatan").notEmpty().withMessage("Jabatan wajib diisi"),
   ],
   authController.register
 );
 
 /**
- * @route   POST /api/auth/login
- * @desc    Login user
- * @access  Public
+ * POST /api/auth/login
+ * Login user
+ * Body: { email (or username), password }
  */
 router.post(
   "/login",
   [
-    body("username").notEmpty().withMessage("Username harus diisi"),
-    body("password").notEmpty().withMessage("Password harus diisi"),
-    validate,
+    body("email").notEmpty().withMessage("Email/Username wajib diisi"),
+    body("password").notEmpty().withMessage("Password wajib diisi"),
   ],
   authController.login
 );
 
 /**
- * Generate password variants (useful for testing) - public
+ * POST /api/auth/refresh-token
+ * Refresh JWT token
+ * Body: { token } atau Header: { Authorization: Bearer <token> }
  */
-router.post(
-  "/password-variants",
-  [body("username").notEmpty().withMessage("Username harus diisi"), validate],
-  authController.generatePasswordVariants
-);
+router.post("/refresh-token", authController.refreshToken);
 
 /**
- * Test generated variants against stored password (development/testing only)
+ * POST /api/auth/logout
+ * Logout user
  */
-router.post(
-  "/password-variants/test",
-  [body("username").notEmpty().withMessage("Username harus diisi"), validate],
-  authController.testPasswordVariants
-);
+router.post("/logout", authController.logout);
 
 /**
- * @route   GET /api/auth/profile
- * @desc    Get current user profile
- * @access  Private
+ * ==================== PROTECTED ROUTES ====================
+ * Requires: Authorization header dengan valid JWT token
  */
-router.get("/profile", authenticate, authController.getProfile);
 
 /**
- * @route   PUT /api/auth/profile
- * @desc    Update user profile
- * @access  Private
+ * GET /api/auth/me
+ * Get data user yang sedang login
+ */
+router.get("/me", authMiddleware, authController.getCurrentUser);
+
+/**
+ * PUT /api/auth/profile
+ * Update profile user
+ * Body: { name?, phone?, jabatan? }
  */
 router.put(
   "/profile",
+  authMiddleware,
   [
-    authenticate,
     body("name").optional().notEmpty().withMessage("Nama tidak boleh kosong"),
-    body("email").optional().isEmail().withMessage("Email tidak valid"),
-    validate,
+    body("phone").optional().notEmpty().withMessage("Phone tidak boleh kosong"),
+    body("jabatan")
+      .optional()
+      .notEmpty()
+      .withMessage("Jabatan tidak boleh kosong"),
   ],
   authController.updateProfile
 );
 
 /**
- * @route   PUT /api/auth/change-password
- * @desc    Change password
- * @access  Private
+ * POST /api/auth/change-password
+ * Ubah password user
+ * Body: { oldPassword, newPassword }
  */
-router.put(
+router.post(
   "/change-password",
+  authMiddleware,
   [
-    authenticate,
-    body("oldPassword").notEmpty().withMessage("Password lama harus diisi"),
+    body("oldPassword").notEmpty().withMessage("Password lama wajib diisi"),
     body("newPassword")
       .isLength({ min: 6 })
       .withMessage("Password baru minimal 6 karakter"),
-    validate,
   ],
   authController.changePassword
 );
+
 /**
- * @route   PUT /api/auth/change-password
- * @desc    Change password
- * @access  Private
+ * ==================== ADMIN ROUTES ====================
+ * Requires: Authorization header + ADMIN role
  */
-router.put(
-  "/change-password",
-  [
-    authenticate,
-    body("oldPassword").notEmpty().withMessage("Password lama harus diisi"),
-    body("newPassword")
-      .isLength({ min: 6 })
-      .withMessage("Password baru minimal 6 karakter"),
-    validate,
-  ],
-  authController.changePassword
+
+/**
+ * GET /api/auth/users
+ * Get semua user (dengan filter)
+ * Query: { role?, search?, limit?, offset? }
+ */
+router.get(
+  "/users",
+  authMiddleware,
+  authorize(["ADMIN"]),
+  authController.getAllUsers
 );
 
-console.log("Type of authController.register:", typeof authController.register);
-console.log("Type of authenticate middleware:", typeof authenticate);
-console.log("Type of validate middleware:", typeof validate);
+/**
+ * PATCH /api/auth/users/:userId/deactivate
+ * Nonaktifkan user
+ */
+router.patch(
+  "/users/:userId/deactivate",
+  authMiddleware,
+  authorize(["ADMIN"]),
+  authController.deactivateUser
+);
 
-module.exports = router;
+/**
+ * PATCH /api/auth/users/:userId/activate
+ * Aktifkan user
+ */
+router.patch(
+  "/users/:userId/activate",
+  authMiddleware,
+  authorize(["ADMIN"]),
+  authController.activateUser
+);
 
-module.exports = router;
+export default router;
