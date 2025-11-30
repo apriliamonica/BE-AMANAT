@@ -22,3 +22,12 @@ class SuratMasukService {
 
        // Generate nomor agenda otomatis
       const nomorAgenda = await this.generateNomorAgenda();
+
+      // Validasi nomor surat tidak duplikat
+      const existingNomor = await prisma.suratMasuk.findUnique({
+        where: { nomorSurat }
+      });
+
+      if (existingNomor) {
+        throw new Error(`Nomor surat ${nomorSurat} sudah ada di sistem`);
+      }
