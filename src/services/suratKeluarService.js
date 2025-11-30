@@ -23,3 +23,7 @@ class SuratKeluarService {
       } = data; 
       // Generate nomor agenda otomatis
       const nomorAgenda = await this.generateNomorAgenda();
+           // Validasi nomor surat tidak duplikat
+      const existingNomor = await prisma.suratKeluar.findUnique({
+        where: { nomorSurat }
+      });
