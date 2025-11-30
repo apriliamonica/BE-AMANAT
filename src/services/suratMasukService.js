@@ -142,3 +142,52 @@ class SuratMasukService {
       throw error;
     }
   }
+
+  /**
+   * Get surat masuk by ID
+   */
+  async getSuratMasukById(suratMasukId) {
+    try {
+      const surat = await prisma.suratMasuk.findUnique({
+        where: { id: suratMasukId },
+        include: {
+          createdBy: {
+            select: { id: true, name: true, email: true, role: true }
+          },
+          lampiran: {
+            select: {
+              id: true,
+              namaFile: true,
+              ukuran: true,
+              mimeType: true,
+              uploadedAt: true
+            }
+          },
+          tracking: {
+            include: {
+              createdBy: { select: { name: true, role: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+          },
+          disposisi: {
+            include: {
+              fromUser: { select: { name: true, role: true } },
+              toUser: { select: { name: true, role: true } }
+            },
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      });
+
+      if (!surat) {
+        throw new Error('Surat masuk tidak ditemukan');
+      }
+
+      return {
+        success: true,
+        data: surat
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
