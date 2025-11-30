@@ -95,3 +95,27 @@ class TrackingService {
     }
   }
 
+
+  /**
+   * Get statistik tracking per tahap
+   */
+  async getTrackingStats() {
+    try {
+      const stats = await prisma.trackingSurat.groupBy({
+        by: ['tahapProses'],
+        _count: true,
+        orderBy: {
+          _count: {
+            id: 'desc'
+          }
+        }
+      });
+
+      return {
+        success: true,
+        data: stats
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
