@@ -102,3 +102,17 @@ class SuratMasukService {
   prisma.suratMasuk.findMany(...),
   prisma.suratMasuk.count({ where })
 ]);
+
+include: {
+  createdBy: {
+    select: { id: true, name: true, role: true }
+  },
+  tracking: {
+    orderBy: { createdAt: 'desc' }
+  },
+  disposisi: {
+    include: {
+      toUser: { select: { name: true, role: true } }
+    }
+  }
+}
