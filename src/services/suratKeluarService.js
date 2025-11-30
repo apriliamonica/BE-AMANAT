@@ -37,7 +37,6 @@ class SuratKeluarService {
           tujuanSurat,
           alamatTujuan,
           kontakTujuan,
-          emailTujuan,
           perihal,
           isiSurat,
           kategori,
@@ -47,3 +46,26 @@ class SuratKeluarService {
           createdById: userId
         }
       });
+
+
+      // Create tracking entry
+      await prisma.trackingSurat.create({
+        data: {
+          suratKeluarId: suratKeluar.id,
+          tahapProses: 'DRAFT',
+          posisiSaat: 'Sekretaris Kantor',
+          aksiDilakukan: 'Membuat draft surat keluar',
+          statusTracking: 'DRAFT',
+          createdById: userId
+        }
+      });
+
+      return {
+        success: true,
+        message: 'Surat keluar berhasil dibuat (draft)',
+        data: suratKeluar
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
