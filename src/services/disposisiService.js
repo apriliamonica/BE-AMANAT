@@ -114,3 +114,54 @@ class DisposisiService {
       if (status) where.status = status;
       if (jenisDispo) where.jenisDispo = jenisDispo;
 
+ // Jika forMe=true, hanya disposisi untuk user ini
+      if (forMe) {
+        where.toUserId = userId;
+      }
+
+      const [disposisi, total] = await Promise.all([
+        prisma.disposisi.findMany({
+          where,
+          skip,
+          take: limit,
+          include: {
+            suratMasuk: {
+              select: {
+                id: true,
+                nomorAgenda: true,
+                nomorSurat: true,
+                perihal: true,
+                status: true
+              }
+            },
+            suratKeluar: {
+              select: {
+                id: true,
+                nomorAgenda: true,
+                nomorSurat: true,
+                perihal: true,
+                status: true
+              }
+            },
+            fromUser: { select: { name: true, role: true } },
+            toUser: { select: { name: true, role: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        }),
+        prisma.disposisi.count({ where })
+      ]);
+
+      return {
+        success: true,
+        data: disposisi,
+        pagination: {
+          total,
+          page,
+          limit,
+          pages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
