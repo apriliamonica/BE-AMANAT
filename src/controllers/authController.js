@@ -6,7 +6,7 @@ import {
   loginSchema,
   changePasswordSchema,
   updateProfileSchema,
-} from "../schemas/auth.schema.js";
+} from "../schemas/authSchema.js";
 
 export class AuthController {
   constructor() {

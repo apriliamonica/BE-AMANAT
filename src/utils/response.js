@@ -1,91 +1,40 @@
-// src/utils/response.js
+export class ApiResponse {
+  static success(res, data, message = "Success", statusCode = 200) {
+    return res.status(statusCode).json({
+      success: true,
+      message,
+      data,
+    });
+  }
 
-/**
- * Success Response
- * @param {Object} res - Express response object
- * @param {number} statusCode - HTTP status code (default 200)
- * @param {string} message - Success message
- * @param {*} data - Response data (optional)
- */
-export const successResponse = (
-  res,
-  statusCode = 200,
-  message = "Sukses",
-  data = null
-) => {
-  return res.status(statusCode).json({
-    success: true,
-    statusCode,
-    message,
-    data,
-    timestamp: new Date().toISOString(),
-  });
-};
+  static error(res, message = "Error", statusCode = 500, errors = null) {
+    return res.status(statusCode).json({
+      success: false,
+      message,
+      errors,
+    });
+  }
 
-/**
- * Error Response
- * @param {Object} res - Express response object
- * @param {number} statusCode - HTTP status code
- * @param {string} message - Error message
- * @param {*} errors - Error details (optional)
- */
-export const errorResponse = (
-  res,
-  statusCode = 500,
-  message = "Terjadi kesalahan",
-  errors = null
-) => {
-  return res.status(statusCode).json({
-    success: false,
-    statusCode,
-    message,
-    errors,
-    timestamp: new Date().toISOString(),
-  });
-};
+  static paginate(res, data, page, limit, total, message = "Success") {
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const totalNum = parseInt(total) || 0;
 
-/**
- * Paginated Response
- * @param {Object} res - Express response object
- * @param {number} statusCode - HTTP status code
- * @param {string} message - Success message
- * @param {Array} data - Array of items
- * @param {number} total - Total count
- * @param {number} limit - Items per page
- * @param {number} offset - Current offset
- */
-export const paginatedResponse = (
-  res,
-  statusCode = 200,
-  message = "Sukses",
-  data = [],
-  total = 0,
-  limit = 10,
-  offset = 0
-) => {
-  const page = Math.floor(offset / limit) + 1;
-  const totalPages = Math.ceil(total / limit);
+    // Prevent division by zero
+    const totalPages = limitNum > 0 ? Math.ceil(totalNum / limitNum) : 0;
 
-  return res.status(statusCode).json({
-    success: true,
-    statusCode,
-    message,
-    data,
-    pagination: {
-      total,
-      limit,
-      offset,
-      page,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPrevPage: page > 1,
-    },
-    timestamp: new Date().toISOString(),
-  });
-};
-
-export default {
-  successResponse,
-  errorResponse,
-  paginatedResponse,
-};
+    return res.status(200).json({
+      success: true,
+      message,
+      data,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalNum,
+        totalPages,
+        hasNextPage: pageNum * limitNum < totalNum,
+        hasPrevPage: pageNum > 1,
+      },
+    });
+  }
+}
