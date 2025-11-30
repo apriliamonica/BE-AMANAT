@@ -275,3 +275,14 @@ class SuratMasukService {
 
     return `SM-${yearMonth}-${String(nextNumber).padStart(4, '0')}`;
   }   
+    /**
+   * Helper: Create tracking entry
+   */
+  async createTracking(trackingData, userId) {
+    return await prisma.trackingSurat.create({
+      data: {
+        ...trackingData,
+        createdById: userId
+      }
+    });
+  }
