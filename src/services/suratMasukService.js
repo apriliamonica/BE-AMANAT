@@ -90,3 +90,11 @@ class SuratMasukService {
       if (status) where.status = status;
       if (kategori) where.kategori = kategori;
       if (prioritas) where.prioritas = prioritas;
+
+      if (search) {
+        where.OR = [
+          { nomorSurat: { contains: search, mode: 'insensitive' } },
+          { asalSurat: { contains: search, mode: 'insensitive' } },
+          { perihal: { contains: search, mode: 'insensitive' } }
+        ];
+      }
