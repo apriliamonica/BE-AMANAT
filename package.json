@@ -6,11 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node server.js",
+    "start": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "node prisma/seed.js"
+    "prisma:seedAdmin": "node prisma/seedAdmin.js"
   },
   "keywords": [
     "amanat",
@@ -22,8 +22,9 @@
   "dependencies": {
     "@prisma/client": "^4.13.0",
     "bcryptjs": "^3.0.3",
-    "cloudinary": "^2.8.0",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "express-validator": "^7.3.1",

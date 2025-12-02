@@ -5,7 +5,7 @@ import { generateToken } from "../config/jwt.js";
 export class AuthService {
   async register(data) {
     try {
-      const { email, password, nama } = data;
+      const { nama_lengkap, email, username, password, role, kodeBagian, jabatan, phone, isActive } = data;
 
       // Validasi: Cek apakah email atau nama sudah terdaftar
       const existingEmail = await prisma.user.findUnique({
@@ -21,12 +21,24 @@ export class AuthService {
       }
 
       const existingName = await prisma.user.findFirst({
-        where: { nama: nama.trim() },
+        where: { nama_lengkap: nama_lengkap.trim() },
       });
 
       if (existingName) {
         const error = new Error(
           "Nama sudah terdaftar. Silakan gunakan nama lain atau login."
+        );
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const existingUsername = await prisma.user.findUnique({
+        where: { username: username.trim() },
+      });
+
+      if (existingUsername) {
+        const error = new Error(
+          "Username sudah terdaftar. Silakan gunakan username lain atau login."
         );
         error.statusCode = 409;
         throw error;
@@ -39,27 +51,35 @@ export class AuthService {
       const user = await prisma.user.create({
         data: {
           email: email.toLowerCase().trim(),
+          username: username.trim(),
           password: hashedPassword,
-          nama: nama.trim(),
-          role: "USER",
+          nama_lengkap: nama_lengkap.trim(),
+          role: role,
+          kodeBagian: kodeBagian ?? null,
+          jabatan: jabatan ?? null,
+          phone: phone ?? null,
+          isActive: isActive ?? true,
         },
         select: {
           id: true,
           email: true,
-          nama: true,
+          username: true,
+          nama_lengkap: true,
           role: true,
-          fakultas: true,
-          prodi: true,
+          kodeBagian: true,
+          jabatan: true,
+          phone: true,
+          isActive: true,
           createdAt: true,
+          updatedAt: true,
         },
       });
 
       // Generate token
-      const token = generateToken({ userId: user.id });
+      // const token = generateToken({ userId: user.id });
 
       return {
-        user,
-        token,
+        user
       };
     } catch (error) {
       const err = new Error(error.message);
@@ -70,16 +90,16 @@ export class AuthService {
 
   async login(data) {
     try {
-      const { email, password } = data;
+      const { username, password } = data;
 
       // Validasi: Cari user berdasarkan email
       const user = await prisma.user.findUnique({
-        where: { email: email.toLowerCase().trim() },
+        where: { username: username.trim() },
       });
 
       if (!user) {
         const error = new Error(
-          "Email atau password salah. Silakan coba lagi."
+          "Username atau password salah. Silakan coba lagi."
         );
         error.statusCode = 401;
         throw error;
@@ -90,7 +110,7 @@ export class AuthService {
 
       if (!isPasswordValid) {
         const error = new Error(
-          "Email atau password salah. Silakan coba lagi."
+          "Username atau password salah. Silakan coba lagi."
         );
         error.statusCode = 401;
         throw error;
@@ -121,10 +141,12 @@ export class AuthService {
         select: {
           id: true,
           email: true,
-          nama: true,
+          nama_lengkap: true,
           role: true,
-          fakultas: true,
-          prodi: true,
+          kodeBagian: true,
+          jabatan: true,
+          phone: true,
+          isActive: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -206,11 +228,27 @@ export class AuthService {
 
   async updateProfile(userId, data) {
     try {
-      const { nama, fakultas, prodi } = data;
+      const { id, nama_lengkap, email, username, password, role, kodeBagian, jabatan, phone, isActive } = data;
+
+      // validasi is me or is admin dari userId
+      const currentUser = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!currentUser) {
+        const error = new Error("User tidak ditemukan");
+        error.statusCode = 404;
+        throw error;
+      }
+      if (currentUser.id !== id && currentUser.role !== 'ADMIN') {
+        const error = new Error("Anda tidak memiliki akses untuk mengupdate profile user lain");
+        error.statusCode = 403;
+        throw error;
+      }
 
       // Validasi: Cek apakah user ada
       const existingUser = await prisma.user.findUnique({
-        where: { id: userId },
+        where: { id: id },
       });
 
       if (!existingUser) {
@@ -220,15 +258,15 @@ export class AuthService {
       }
 
       // Validasi: Cek apakah nama sedang diubah dan sudah digunakan
-      if (nama && nama.trim() !== existingUser.nama) {
+      if (nama_lengkap && nama_lengkap.trim() !== existingUser.nama_lengkap) {
         // Gunakan findFirst karena nama bukan unique field
         const nameExists = await prisma.user.findFirst({
-          where: { nama: nama.trim() },
+          where: { nama_lengkap: nama_lengkap.trim() },
         });
 
         if (nameExists) {
           const error = new Error(
-            "Nama sudah digunakan. Silakan gunakan nama lain."
+            "Nama lengkap sudah digunakan. Silakan gunakan nama lengkap lain."
           );
           error.statusCode = 409;
           throw error;
@@ -237,22 +275,30 @@ export class AuthService {
 
       // Prepare update data (hanya field yang diisi)
       const updateData = {};
-      if (nama !== undefined) updateData.nama = nama.trim();
-      if (fakultas !== undefined)
-        updateData.fakultas = fakultas?.trim() || null;
-      if (prodi !== undefined) updateData.prodi = prodi?.trim() || null;
+      if (nama_lengkap !== undefined) updateData.nama_lengkap = nama_lengkap.trim();
+      if (email !== undefined) updateData.email = email.toLowerCase().trim();
+      if (username !== undefined) updateData.username = username.trim();
+      if (password !== undefined) updateData.password = await hashPassword(password);
+      if (role !== undefined) updateData.role = role;
+      if (kodeBagian !== undefined)
+        updateData.kodeBagian = kodeBagian?.trim() || null;
+      if (jabatan !== undefined) updateData.jabatan = jabatan?.trim() || null;
+      if (phone !== undefined) updateData.phone = phone?.trim() || null;
+      if (isActive !== undefined) updateData.isActive = isActive ?? true;
 
       // Update user
       const user = await prisma.user.update({
-        where: { id: userId },
+        where: { id: id },
         data: updateData,
         select: {
           id: true,
           email: true,
-          nama: true,
+          nama_lengkap: true,
           role: true,
-          fakultas: true,
-          prodi: true,
+          kodeBagian: true,
+          jabatan: true,
+          phone: true,
+          isActive: true,
           updatedAt: true,
         },
       });

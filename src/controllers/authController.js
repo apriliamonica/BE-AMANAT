@@ -17,19 +17,25 @@ export class AuthController {
     try {
       // Validasi dengan Zod schema + Controller validation
       await validateRequest(req, {
-        required: ["email", "password", "nama"],
-        allowed: ["email", "password", "nama"],
+        required: [],
+        allowed: ["nama_lengkap", "email", "username", "password", "role", "kodeBagian", "jabatan", "phone", "isActive"],
         schema: registerSchema,
       });
-
       // Extract validated data (sudah divalidasi dan di-sanitize oleh Zod)
-      const { email, password, nama } = req.body;
-
       // Panggil service
+      const { nama_lengkap, email, username, password, role, kodeBagian, jabatan, phone, isActive } = req.body;
+
+      // Panggil service untuk register user
       const result = await this.authService.register({
+        nama_lengkap,
         email,
+        username,
         password,
-        nama,
+        role,
+        kodeBagian,
+        jabatan,
+        phone,
+        isActive: isActive ?? true,
       });
 
       // Return success response
@@ -49,17 +55,17 @@ export class AuthController {
     try {
       // Validasi dengan Zod schema + Controller validation
       await validateRequest(req, {
-        required: ["email", "password"],
-        allowed: ["email", "password"],
+        required: ["username", "password"],
+        allowed: ["username", "password"],
         schema: loginSchema,
       });
 
       // Extract validated data (sudah divalidasi dan di-sanitize oleh Zod)
-      const { email, password } = req.body;
+      const { username, password } = req.body;
 
       // Panggil service
       const result = await this.authService.login({
-        email,
+        username,
         password,
       });
 
@@ -156,14 +162,31 @@ export class AuthController {
       // Untuk update profile, semua field optional, tapi harus ada minimal 1 field
       await validateRequest(req, {
         required: [],
-        allowed: ["nama", "fakultas", "prodi"],
+        allowed: ["id", "nama_lengkap", "email", "username", "password", "role", "kodeBagian", "jabatan", "phone", "isActive"],
         schema: updateProfileSchema,
       });
 
       // Validasi business rule: Minimal 1 field harus diisi untuk update
-      const { nama, fakultas, prodi } = req.body;
+      const { id, email, username, password, role, nama_lengkap, kodeBagian, jabatan, phone, isActive } = req.body;
+      const hasId = id !== undefined;
+
+
+      if (!hasId) {
+        return ApiResponse.error(
+          res,
+          "ID user harus diisi",
+          400,
+          [
+            {
+              field: "body",
+              message: "ID user harus diisi",
+            },
+          ]
+        );
+      }
+
       const hasAnyField =
-        nama !== undefined || fakultas !== undefined || prodi !== undefined;
+         email !== undefined || username !== undefined || password !== undefined || role !== undefined || nama_lengkap !== undefined || kodeBagian !== undefined || jabatan !== undefined || phone !== undefined || isActive !== undefined;
 
       if (!hasAnyField) {
         return ApiResponse.error(
@@ -174,7 +197,7 @@ export class AuthController {
             {
               field: "body",
               message:
-                "Minimal satu field (nama, fakultas, atau prodi) harus diisi",
+                "Minimal satu field (nama_lengkap, kodeBagian, jabatan, phone, atau isActive) harus diisi",
             },
           ]
         );
@@ -185,9 +208,16 @@ export class AuthController {
 
       // Panggil service
       const user = await this.authService.updateProfile(userId, {
-        nama,
-        fakultas,
-        prodi,
+        id,
+        nama_lengkap,
+        email,
+        username,
+        password,
+        role,
+        kodeBagian,
+        jabatan,
+        phone,
+        isActive: isActive ?? true,
       });
 
       // Return success response

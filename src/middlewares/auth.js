@@ -20,10 +20,14 @@ export class AuthMiddleware {
         select: {
           id: true,
           email: true,
-          nama: true,
+          nama_lengkap: true,
+          username: true,
+          password: true,
           role: true,
-          fakultas: true,
-          prodi: true,
+          kodeBagian: true,
+          jabatan: true,
+          phone: true,
+          isActive: true,
         },
       });
 

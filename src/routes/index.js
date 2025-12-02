@@ -1,0 +1,35 @@
+import express from 'express';
+import authRoutes from './authRoutes.js';
+import { prisma } from '../config/index.js';
+
+const router = express.Router();
+
+// Health check
+router.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    await prisma.$queryRaw`SELECT 1`;
+
+    res.json({
+      success: true,
+      status: 'healthy',
+      message: 'API is running',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      database: 'connected',
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      status: 'unhealthy',
+      message: 'API is running but database is disconnected',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+    });
+  }
+});
+
+// Routes
+router.use('/auth', authRoutes);
+
+export default router;
