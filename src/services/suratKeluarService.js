@@ -12,36 +12,20 @@ class SuratKeluarService {
         nomorSurat,
         tanggalSurat,
         tujuanSurat,
-        alamatTujuan,
-        kontakTujuan,
-        emailTujuan,
         perihal,
-        isiSurat,
         kategori,
         prioritas = "SEDANG",
-        tembusan,
       } = data;
-      // Generate nomor agenda otomatis
-      const nomorAgenda = await this.generateNomorAgenda();
-      // Validasi nomor surat tidak duplikat
-      const existingNomor = await prisma.suratKeluar.findUnique({
-        where: { nomorSurat },
-      });
 
       // Create surat keluar
       const suratKeluar = await prisma.suratKeluar.create({
         data: {
-          nomorAgenda,
           nomorSurat,
           tanggalSurat: new Date(tanggalSurat),
           tujuanSurat,
-          alamatTujuan,
-          kontakTujuan,
           perihal,
-          isiSurat,
           kategori,
           prioritas,
-          tembusan,
           status: "DRAFT",
           createdById: userId,
         },
@@ -241,33 +225,6 @@ class SuratKeluarService {
   }
 
   /**
-   * Helper: Generate nomor agenda
-   */
-  async generateNomorAgenda() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const yearMonth = `${year}${month}`;
-
-    const lastAgenda = await prisma.suratKeluar.findFirst({
-      where: {
-        nomorAgenda: {
-          startsWith: `SK-${yearMonth}-`,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    let nextNumber = 1;
-    if (lastAgenda) {
-      const lastNumber = parseInt(lastAgenda.nomorAgenda.split("-")[2]);
-      nextNumber = lastNumber + 1;
-    }
-
-    return `SK-${yearMonth}-${String(nextNumber).padStart(4, "0")}`;
-  }
-
-  /**
    * Helper: Get status per role
    */
   getStatusPerRole(surat, userRole) {
@@ -278,7 +235,6 @@ class SuratKeluarService {
         LAMPIRAN_KABAG: "DI KABAG - UPLOAD LAMPIRAN",
         REVIEW_KETUA: "DI KETUA - REVIEW & TTD",
         TERKIRIM: "TERKIRIM - SELESAI",
-        REVISI: "REVISI",
         DIBATALKAN: "DIBATALKAN",
       },
       SEKRETARIS_PENGURUS: {
@@ -287,7 +243,6 @@ class SuratKeluarService {
         LAMPIRAN_KABAG: "LAMPIRAN REQUEST",
         REVIEW_KETUA: "LAMPIRAN DITERIMA - KE KETUA",
         TERKIRIM: "TERKIRIM - SELESAI",
-        REVISI: "REVISI",
         DIBATALKAN: "DIBATALKAN",
       },
       KEPALA_BAGIAN_PSDM: {
@@ -296,7 +251,6 @@ class SuratKeluarService {
         LAMPIRAN_KABAG: "UPLOAD LAMPIRAN DIPERLUKAN",
         REVIEW_KETUA: "UPLOAD SELESAI",
         TERKIRIM: "TERKIRIM - SELESAI",
-        REVISI: "REVISI",
         DIBATALKAN: "DIBATALKAN",
       },
       KEPALA_BAGIAN_KEUANGAN: {
@@ -305,7 +259,6 @@ class SuratKeluarService {
         LAMPIRAN_KABAG: "UPLOAD LAMPIRAN DIPERLUKAN",
         REVIEW_KETUA: "UPLOAD SELESAI",
         TERKIRIM: "TERKIRIM - SELESAI",
-        REVISI: "REVISI",
         DIBATALKAN: "DIBATALKAN",
       },
       KEPALA_BAGIAN_UMUM: {
@@ -314,7 +267,6 @@ class SuratKeluarService {
         LAMPIRAN_KABAG: "UPLOAD LAMPIRAN DIPERLUKAN",
         REVIEW_KETUA: "UPLOAD SELESAI",
         TERKIRIM: "TERKIRIM - SELESAI",
-        REVISI: "REVISI",
         DIBATALKAN: "DIBATALKAN",
       },
       KETUA_PENGURUS: {
@@ -323,7 +275,6 @@ class SuratKeluarService {
         LAMPIRAN_KABAG: "MENUNGGU KELENGKAPAN",
         REVIEW_KETUA: "PERLU REVIEW & TTD",
         TERKIRIM: "TTD SELESAI - TERKIRIM",
-        REVISI: "REVISI",
         DIBATALKAN: "DIBATALKAN",
       },
     };
@@ -371,8 +322,7 @@ class SuratKeluarService {
       REVIEW_SEKPENGURUS: "Sekretaris Pengurus",
       LAMPIRAN_KABAG: "Kepala Bagian",
       REVIEW_KETUA: "Ketua Yayasan",
-      TERKIRIM: "Arsip",
-      REVISI: "Revisi",
+      TERKIRIM: "Selesai",
       DIBATALKAN: "Dibatalkan",
     };
 

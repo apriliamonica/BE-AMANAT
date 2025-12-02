@@ -129,7 +129,6 @@ class DisposisiService {
             suratMasuk: {
               select: {
                 id: true,
-                nomorAgenda: true,
                 nomorSurat: true,
                 perihal: true,
                 status: true,
@@ -138,7 +137,6 @@ class DisposisiService {
             suratKeluar: {
               select: {
                 id: true,
-                nomorAgenda: true,
                 nomorSurat: true,
                 perihal: true,
                 status: true,

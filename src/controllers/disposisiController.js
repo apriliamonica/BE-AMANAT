@@ -1,19 +1,23 @@
 // src/controllers/disposisiController.js
-const prisma = require('../config/database');
-const { successResponse, errorResponse, paginationResponse } = require('../utils/response');
+const prisma = require("../config/database");
+const {
+  successResponse,
+  errorResponse,
+  paginationResponse,
+} = require("../utils/response");
 
 /**
  * Get all disposisi (with filters)
  */
 const getAllDisposisi = async (req, res, next) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
+    const {
+      page = 1,
+      limit = 10,
       status,
       toUserId,
       fromUserId,
-      suratMasukId 
+      suratMasukId,
     } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -22,7 +26,7 @@ const getAllDisposisi = async (req, res, next) => {
       ...(status && { status }),
       ...(toUserId && { toUserId }),
       ...(fromUserId && { fromUserId }),
-      ...(suratMasukId && { suratMasukId })
+      ...(suratMasukId && { suratMasukId }),
     };
 
     const total = await prisma.disposisi.count({ where });
@@ -31,31 +35,30 @@ const getAllDisposisi = async (req, res, next) => {
       where,
       skip,
       take: parseInt(limit),
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         fromUser: {
-          select: { id: true, name: true, role: true, bagian: true }
+          select: { id: true, name: true, role: true, bagian: true },
         },
         toUser: {
-          select: { id: true, name: true, role: true, bagian: true }
+          select: { id: true, name: true, role: true, bagian: true },
         },
         suratMasuk: {
           select: {
             id: true,
-            nomorAgenda: true,
             nomorSurat: true,
             perihal: true,
-            asalSurat: true
-          }
-        }
-      }
+            asalSurat: true,
+          },
+        },
+      },
     });
 
     return paginationResponse(
       res,
       data,
       { page: parseInt(page), limit: parseInt(limit), total },
-      'Data disposisi berhasil diambil'
+      "Data disposisi berhasil diambil"
     );
   } catch (error) {
     next(error);
@@ -73,27 +76,27 @@ const getDisposisiById = async (req, res, next) => {
       where: { id },
       include: {
         fromUser: {
-          select: { id: true, name: true, role: true, bagian: true }
+          select: { id: true, name: true, role: true, bagian: true },
         },
         toUser: {
-          select: { id: true, name: true, role: true, bagian: true }
+          select: { id: true, name: true, role: true, bagian: true },
         },
         suratMasuk: {
           include: {
             createdBy: {
-              select: { id: true, name: true }
+              select: { id: true, name: true },
             },
-            lampiran: true
-          }
-        }
-      }
+            lampiran: true,
+          },
+        },
+      },
     });
 
     if (!disposisi) {
-      return errorResponse(res, 'Disposisi tidak ditemukan', 404);
+      return errorResponse(res, "Disposisi tidak ditemukan", 404);
     }
 
-    return successResponse(res, disposisi, 'Detail disposisi berhasil diambil');
+    return successResponse(res, disposisi, "Detail disposisi berhasil diambil");
   } catch (error) {
     next(error);
   }
@@ -109,7 +112,7 @@ const getMyDisposisi = async (req, res, next) => {
 
     const where = {
       toUserId: req.user.id,
-      ...(status && { status })
+      ...(status && { status }),
     };
 
     const total = await prisma.disposisi.count({ where });
@@ -118,10 +121,10 @@ const getMyDisposisi = async (req, res, next) => {
       where,
       skip,
       take: parseInt(limit),
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: {
         fromUser: {
-          select: { id: true, name: true, role: true, bagian: true }
+          select: { id: true, name: true, role: true, bagian: true },
         },
         suratMasuk: {
           select: {
@@ -130,17 +133,17 @@ const getMyDisposisi = async (req, res, next) => {
             nomorSurat: true,
             perihal: true,
             asalSurat: true,
-            prioritas: true
-          }
-        }
-      }
+            prioritas: true,
+          },
+        },
+      },
     });
 
     return paginationResponse(
       res,
       data,
       { page: parseInt(page), limit: parseInt(limit), total },
-      'Disposisi Anda berhasil diambil'
+      "Disposisi Anda berhasil diambil"
     );
   } catch (error) {
     next(error);
@@ -158,25 +161,25 @@ const createDisposisi = async (req, res, next) => {
       instruksi,
       catatan,
       tenggatWaktu,
-      prioritas
+      prioritas,
     } = req.body;
 
     // Check if surat exists
     const surat = await prisma.suratMasuk.findUnique({
-      where: { id: suratMasukId }
+      where: { id: suratMasukId },
     });
 
     if (!surat) {
-      return errorResponse(res, 'Surat tidak ditemukan', 404);
+      return errorResponse(res, "Surat tidak ditemukan", 404);
     }
 
     // Check if toUser exists
     const toUser = await prisma.user.findUnique({
-      where: { id: toUserId }
+      where: { id: toUserId },
     });
 
     if (!toUser) {
-      return errorResponse(res, 'User tujuan tidak ditemukan', 404);
+      return errorResponse(res, "User tujuan tidak ditemukan", 404);
     }
 
     // Create disposisi
@@ -188,35 +191,35 @@ const createDisposisi = async (req, res, next) => {
         instruksi,
         catatan,
         tenggatWaktu: tenggatWaktu ? new Date(tenggatWaktu) : null,
-        prioritas: prioritas || 'BIASA'
+        prioritas: prioritas || "BIASA",
       },
       include: {
         fromUser: {
-          select: { id: true, name: true, role: true }
+          select: { id: true, name: true, role: true },
         },
         toUser: {
-          select: { id: true, name: true, role: true }
-        }
-      }
+          select: { id: true, name: true, role: true },
+        },
+      },
     });
 
     // Update surat status
     await prisma.suratMasuk.update({
       where: { id: suratMasukId },
-      data: { status: 'SUDAH_DISPOSISI' }
+      data: { status: "SUDAH_DISPOSISI" },
     });
 
     // Create tracking
     await prisma.trackingSurat.create({
       data: {
         suratMasukId,
-        status: 'Disposisi',
+        status: "Disposisi",
         keterangan: `Surat didisposisikan kepada ${toUser.name} - ${instruksi}`,
-        createdById: req.user.id
-      }
+        createdById: req.user.id,
+      },
     });
 
-    return successResponse(res, disposisi, 'Disposisi berhasil dibuat', 201);
+    return successResponse(res, disposisi, "Disposisi berhasil dibuat", 201);
   } catch (error) {
     next(error);
   }
@@ -232,16 +235,20 @@ const updateDisposisi = async (req, res, next) => {
 
     const existing = await prisma.disposisi.findUnique({
       where: { id },
-      include: { suratMasuk: true }
+      include: { suratMasuk: true },
     });
 
     if (!existing) {
-      return errorResponse(res, 'Disposisi tidak ditemukan', 404);
+      return errorResponse(res, "Disposisi tidak ditemukan", 404);
     }
 
     // Only toUser can update the disposisi
     if (existing.toUserId !== req.user.id) {
-      return errorResponse(res, 'Anda tidak memiliki akses untuk mengubah disposisi ini', 403);
+      return errorResponse(
+        res,
+        "Anda tidak memiliki akses untuk mengubah disposisi ini",
+        403
+      );
     }
 
     const disposisi = await prisma.disposisi.update({
@@ -249,16 +256,16 @@ const updateDisposisi = async (req, res, next) => {
       data: {
         status,
         catatan,
-        selesaiAt: status === 'SELESAI' ? new Date() : undefined
+        selesaiAt: status === "SELESAI" ? new Date() : undefined,
       },
       include: {
         fromUser: {
-          select: { id: true, name: true }
+          select: { id: true, name: true },
         },
         toUser: {
-          select: { id: true, name: true }
-        }
-      }
+          select: { id: true, name: true },
+        },
+      },
     });
 
     // Create tracking
@@ -267,11 +274,11 @@ const updateDisposisi = async (req, res, next) => {
         suratMasukId: existing.suratMasukId,
         status: `Disposisi ${status}`,
         keterangan: catatan || `Status disposisi diubah menjadi ${status}`,
-        createdById: req.user.id
-      }
+        createdById: req.user.id,
+      },
     });
 
-    return successResponse(res, disposisi, 'Disposisi berhasil diupdate');
+    return successResponse(res, disposisi, "Disposisi berhasil diupdate");
   } catch (error) {
     next(error);
   }
@@ -287,17 +294,21 @@ const deleteDisposisi = async (req, res, next) => {
     const disposisi = await prisma.disposisi.findUnique({ where: { id } });
 
     if (!disposisi) {
-      return errorResponse(res, 'Disposisi tidak ditemukan', 404);
+      return errorResponse(res, "Disposisi tidak ditemukan", 404);
     }
 
     // Only fromUser (creator) can delete
     if (disposisi.fromUserId !== req.user.id) {
-      return errorResponse(res, 'Anda tidak memiliki akses untuk menghapus disposisi ini', 403);
+      return errorResponse(
+        res,
+        "Anda tidak memiliki akses untuk menghapus disposisi ini",
+        403
+      );
     }
 
     await prisma.disposisi.delete({ where: { id } });
 
-    return successResponse(res, null, 'Disposisi berhasil dihapus');
+    return successResponse(res, null, "Disposisi berhasil dihapus");
   } catch (error) {
     next(error);
   }
@@ -311,22 +322,26 @@ const getStatistics = async (req, res, next) => {
     const userId = req.user.id;
 
     const sent = await prisma.disposisi.count({
-      where: { fromUserId: userId }
+      where: { fromUserId: userId },
     });
 
     const received = await prisma.disposisi.count({
-      where: { toUserId: userId }
+      where: { toUserId: userId },
     });
 
     const pending = await prisma.disposisi.count({
-      where: { toUserId: userId, status: 'PENDING' }
+      where: { toUserId: userId, status: "PENDING" },
     });
 
     const selesai = await prisma.disposisi.count({
-      where: { toUserId: userId, status: 'SELESAI' }
+      where: { toUserId: userId, status: "SELESAI" },
     });
 
-    return successResponse(res, { sent, received, pending, selesai }, 'Statistik disposisi berhasil diambil');
+    return successResponse(
+      res,
+      { sent, received, pending, selesai },
+      "Statistik disposisi berhasil diambil"
+    );
   } catch (error) {
     next(error);
   }
@@ -339,5 +354,5 @@ module.exports = {
   createDisposisi,
   updateDisposisi,
   deleteDisposisi,
-  getStatistics
+  getStatistics,
 };

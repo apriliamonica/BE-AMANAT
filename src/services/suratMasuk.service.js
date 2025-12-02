@@ -1,8 +1,15 @@
-import { prisma } from '../config/index.js';
+import { prisma } from "../config/index.js";
 
 class SuratMasukService {
   async list(filters = {}) {
-    const { status, kategori, prioritas, page = 1, limit = 10, search } = filters;
+    const {
+      status,
+      kategori,
+      prioritas,
+      page = 1,
+      limit = 10,
+      search,
+    } = filters;
 
     const take = Number(limit) || 10;
     const skip = (Number(page) - 1) * take;
@@ -15,10 +22,10 @@ class SuratMasukService {
 
     if (search) {
       where.OR = [
-        { nomorSurat: { contains: search, mode: 'insensitive' } },
-        { nomorAgenda: { contains: search, mode: 'insensitive' } },
-        { perihal: { contains: search, mode: 'insensitive' } },
-        { asalSurat: { contains: search, mode: 'insensitive' } },
+        { nomorSurat: { contains: search, mode: "insensitive" } },
+        { nomorAgenda: { contains: search, mode: "insensitive" } },
+        { perihal: { contains: search, mode: "insensitive" } },
+        { asalSurat: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -27,7 +34,7 @@ class SuratMasukService {
         where,
         skip,
         take,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       }),
       prisma.suratMasuk.count({ where }),
     ]);
@@ -39,7 +46,7 @@ class SuratMasukService {
     const surat = await prisma.suratMasuk.findUnique({ where: { id } });
 
     if (!surat) {
-      const error = new Error('Surat masuk tidak ditemukan');
+      const error = new Error("Surat masuk tidak ditemukan");
       error.statusCode = 404;
       throw error;
     }
@@ -50,50 +57,34 @@ class SuratMasukService {
   async create(data, userId) {
     const {
       nomorSurat,
-      tanggalTerima,
+      tanggalSurat,
+      tanggalDiterima,
       asalSurat,
       perihal,
       kategori,
-      prioritas,
       namaPengirim,
-      kontakPengirim,
-      catatan,
     } = data;
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const prefix = `SM-${year}${month}-`;
-
-    const last = await prisma.suratMasuk.findFirst({
-      where: { nomorAgenda: { startsWith: prefix } },
-      orderBy: { nomorAgenda: 'desc' },
+    // Validasi nomor surat tidak duplikat
+    const existingNomor = await prisma.suratMasuk.findFirst({
+      where: { nomorSurat },
     });
-
-    let nextNumber = 1;
-    if (last) {
-      const lastNumber = parseInt(last.nomorAgenda.split('-')[2], 10);
-      if (!Number.isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
-      }
+    if (existingNomor) {
+      const error = new Error("Nomor surat sudah digunakan");
+      error.statusCode = 400;
+      throw error;
     }
-
-    const nomorAgenda = `${prefix}${String(nextNumber).padStart(4, '0')}`;
 
     const created = await prisma.suratMasuk.create({
       data: {
-        nomorAgenda,
         nomorSurat,
-        tanggalSurat: new Date(tanggalTerima),
-        tanggalDiterima: new Date(tanggalTerima),
+        tanggalSurat: new Date(tanggalSurat),
+        tanggalDiterima: new Date(tanggalDiterima),
         asalSurat,
         perihal,
         kategori,
-        prioritas,
-        status: 'DITERIMA',
-        namaPengirim: namaPengirim || null,
-        kontakPengirim: kontakPengirim || null,
-        catatan: catatan || null,
+        status: "DITERIMA",
+        namaPengirim,
         createdById: userId,
       },
     });
@@ -105,38 +96,17 @@ class SuratMasukService {
     const existing = await prisma.suratMasuk.findUnique({ where: { id } });
 
     if (!existing) {
-      const error = new Error('Surat masuk tidak ditemukan');
+      const error = new Error("Surat masuk tidak ditemukan");
       error.statusCode = 404;
       throw error;
     }
 
-    const {
-      nomorSurat,
-      tanggalTerima,
-      asalSurat,
-      perihal,
-      kategori,
-      prioritas,
-      status,
-      namaPengirim,
-      kontakPengirim,
-      catatan,
-    } = data;
+    const { status } = data;
 
     const updated = await prisma.suratMasuk.update({
       where: { id },
       data: {
-        nomorSurat: nomorSurat ?? existing.nomorSurat,
-        tanggalSurat: tanggalTerima ? new Date(tanggalTerima) : existing.tanggalSurat,
-        tanggalDiterima: tanggalTerima ? new Date(tanggalTerima) : existing.tanggalDiterima,
-        asalSurat: asalSurat ?? existing.asalSurat,
-        perihal: perihal ?? existing.perihal,
-        kategori: kategori ?? existing.kategori,
-        prioritas: prioritas ?? existing.prioritas,
-        status: status ?? existing.status,
-        namaPengirim: namaPengirim ?? existing.namaPengirim,
-        kontakPengirim: kontakPengirim ?? existing.kontakPengirim,
-        catatan: catatan ?? existing.catatan,
+        status,
       },
     });
 
@@ -147,7 +117,7 @@ class SuratMasukService {
     const existing = await prisma.suratMasuk.findUnique({ where: { id } });
 
     if (!existing) {
-      const error = new Error('Surat masuk tidak ditemukan');
+      const error = new Error("Surat masuk tidak ditemukan");
       error.statusCode = 404;
       throw error;
     }
@@ -158,5 +128,3 @@ class SuratMasukService {
 }
 
 export default SuratMasukService;
-
-

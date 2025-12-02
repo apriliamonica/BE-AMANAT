@@ -1,6 +1,6 @@
-import { ApiResponse } from '../utils/response.js';
-import { validateRequest } from '../utils/validators.js';
-import SuratMasukService from '../services/suratMasuk.service.js';
+import { ApiResponse } from "../utils/response.js";
+import { validateRequest } from "../utils/validators.js";
+import SuratMasukService from "../services/suratMasuk.service.js";
 
 export class SuratMasukController {
   constructor() {
@@ -18,14 +18,17 @@ export class SuratMasukController {
         search,
         status,
         kategori,
-        prioritas,
       });
 
-      return ApiResponse.success(res, result, 'Data surat masuk berhasil diambil');
+      return ApiResponse.success(
+        res,
+        result,
+        "Data surat masuk berhasil diambil"
+      );
     } catch (error) {
       return ApiResponse.error(
         res,
-        error.message || 'Terjadi kesalahan',
+        error.message || "Terjadi kesalahan",
         error.statusCode || 500
       );
     }
@@ -36,11 +39,15 @@ export class SuratMasukController {
     try {
       const { id } = req.params;
       const surat = await this.suratMasukService.getById(id);
-      return ApiResponse.success(res, surat, 'Detail surat masuk berhasil diambil');
+      return ApiResponse.success(
+        res,
+        surat,
+        "Detail surat masuk berhasil diambil"
+      );
     } catch (error) {
       return ApiResponse.error(
         res,
-        error.message || 'Terjadi kesalahan',
+        error.message || "Terjadi kesalahan",
         error.statusCode || 404
       );
     }
@@ -50,26 +57,41 @@ export class SuratMasukController {
   create = async (req, res) => {
     try {
       await validateRequest(req, {
-        required: ['nomorSurat', 'tanggalTerima', 'asalSurat', 'perihal', 'kategori', 'prioritas'],
+        required: [
+          "nomorSurat",
+          "tanggalSurat",
+          "tanggalDiterima",
+          "asalSurat",
+          "perihal",
+          "kategori",
+          "namaPengirim",
+        ],
         allowed: [
-          'nomorSurat',
-          'tanggalTerima',
-          'asalSurat',
-          'perihal',
-          'kategori',
-          'prioritas',
-          'namaPengirim',
-          'kontakPengirim',
-          'catatan',
+          "nomorSurat",
+          "tanggalSurat",
+          "tanggalDiterima",
+          "asalSurat",
+          "perihal",
+          "kategori",
+          "namaPengirim",
+          "status",
         ],
       });
 
-      const created = await this.suratMasukService.create(req.body, req.user.id);
-      return ApiResponse.success(res, created, 'Surat masuk berhasil dibuat', 201);
+      const created = await this.suratMasukService.create(
+        req.body,
+        req.user.id
+      );
+      return ApiResponse.success(
+        res,
+        created,
+        "Surat masuk berhasil dibuat",
+        201
+      );
     } catch (error) {
       return ApiResponse.error(
         res,
-        error.message || 'Terjadi kesalahan',
+        error.message || "Terjadi kesalahan",
         error.statusCode || 400
       );
     }
@@ -80,11 +102,11 @@ export class SuratMasukController {
     try {
       const { id } = req.params;
       const updated = await this.suratMasukService.update(id, req.body);
-      return ApiResponse.success(res, updated, 'Surat masuk berhasil diupdate');
+      return ApiResponse.success(res, updated, "Surat masuk berhasil diupdate");
     } catch (error) {
       return ApiResponse.error(
         res,
-        error.message || 'Terjadi kesalahan',
+        error.message || "Terjadi kesalahan",
         error.statusCode || 400
       );
     }
@@ -95,15 +117,13 @@ export class SuratMasukController {
     try {
       const { id } = req.params;
       await this.suratMasukService.remove(id);
-      return ApiResponse.success(res, null, 'Surat masuk berhasil dihapus');
+      return ApiResponse.success(res, null, "Surat masuk berhasil dihapus");
     } catch (error) {
       return ApiResponse.error(
         res,
-        error.message || 'Terjadi kesalahan',
+        error.message || "Terjadi kesalahan",
         error.statusCode || 400
       );
     }
   };
 }
-
-

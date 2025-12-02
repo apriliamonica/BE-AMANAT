@@ -35,7 +35,6 @@ enum StatusSuratMasuk {
   DISPOSISI_SEKPENGURUS    // Tahap 4: Sekpengurus koordinasi & disposisi
   DISPOSISI_KABAG          // Tahap 5: Kabag proses & upload hasil
   SELESAI                  // Tahap 6: Diarsipkan
-  DITOLAK                  // Surat ditolak
 }
 
 // Status untuk Surat Keluar (5 tahap)
@@ -45,8 +44,6 @@ enum StatusSuratKeluar {
   LAMPIRAN_KABAG           // Tahap 3: (Optional) Kabag upload lampiran
   REVIEW_KETUA             // Tahap 4: Ketua review & TTD
   TERKIRIM                 // Tahap 5: Final & diarsipkan
-  REVISI                   // Butuh revisi
-  DIBATALKAN               // Dibatalkan
 }
 
 enum StatusDisposisi {
@@ -57,11 +54,6 @@ enum StatusDisposisi {
   DITOLAK                  // Ditolak/dikembalikan
 }
 
-enum Prioritas {
-  RENDAH
-  SEDANG
-  TINGGI
-}
 
 enum JenisKategori {
   UNDANGAN
@@ -91,7 +83,6 @@ model User {
   // Relations
   suratMasukCreatedBy      SuratMasuk[]        @relation("SuratMasukCreatedBy")
   suratKeluarCreatedBy     SuratKeluar[]       @relation("SuratKeluarCreatedBy")
-  suratLampiranCreatedBy   SuratKeluarLampiran[] @relation("SuratLampiranCreatedBy")
   
   disposisiFrom            Disposisi[]         @relation("DisposisiFrom")
   disposisiTo              Disposisi[]         @relation("DisposisiTo")
@@ -108,24 +99,16 @@ model User {
 
 model SuratMasuk {
   id              String              @id @default(uuid())
-  nomorAgenda     String              @unique      // SM-202411-0001
   nomorSurat      String              // Nomor dari pengirim
   tanggalSurat    DateTime
   tanggalDiterima DateTime            @default(now())
-  
-  // Pengirim
   asalSurat       String              // Instansi pengirim
-  namaPengirim    String?
-  kontakPengirim  String?
-  
-  // Detail
   perihal         String              @db.Text
   kategori        JenisKategori
-  prioritas       Prioritas           @default(SEDANG)
+  namaPengirim    String?
   status          StatusSuratMasuk    @default(DITERIMA)
   
   // Metadata
-  catatan         String?             @db.Text
   createdById     String
   createdBy       User                @relation("SuratMasukCreatedBy", fields: [createdById], references: [id])
   createdAt       DateTime            @default(now())
@@ -137,7 +120,6 @@ model SuratMasuk {
   tracking        TrackingSurat[]
 
   @@map("surat_masuk")
-  @@index([nomorAgenda])
   @@index([status])
   @@index([tanggalDiterima])
 }
@@ -146,26 +128,17 @@ model SuratMasuk {
 
 model SuratKeluar {
   id              String              @id @default(uuid())
-  nomorAgenda     String              @unique      // SK-202411-0001
   nomorSurat      String              @unique      // Nomor surat keluar
   tanggalSurat    DateTime
-  tanggalDikirim  DateTime?           // Null jika masih draft
   
   // Penerima
   tujuanSurat     String              // Nama instansi/penerima
-  alamatTujuan    String?             @db.Text
-  kontakTujuan    String?
-  emailTujuan     String?
   
   // Detail
   perihal         String              @db.Text
-  isiSurat        String              @db.Text
   kategori        JenisKategori
-  prioritas       Prioritas           @default(SEDANG)
   status          StatusSuratKeluar   @default(DRAFT)
   
-  // Tembusan
-  tembusan        String?             @db.Text
   
   // Metadata
   catatan         String?             @db.Text
@@ -180,48 +153,11 @@ model SuratKeluar {
   disposisi       Disposisi[]         @relation("DisposisiSuratKeluar")
 
   @@map("surat_keluar")
-  @@index([nomorAgenda])
   @@index([nomorSurat])
   @@index([status])
   @@index([tanggalSurat])
 }
 
-// ==================== SURAT KELUAR LAMPIRAN ====================
-
-model SuratKeluarLampiran {
-  id                  String              @id @default(uuid())
-  nomorAgenda         String              @unique  // SKLAMP-202411-0001
-  nomorSurat          String              @unique  // Format: SK/LAMP/PSDM/001/XI/2025
-  tanggalSurat        DateTime
-  
-  // Dari Kabag (TTD)
-  kepalaKabagId       String
-  kepalaKabag         User                @relation("SuratLampiranCreatedBy", fields: [kepalaKabagId], references: [id])
-  
-  // Referensi ke Surat Keluar asli
-  suratKeluarRefId    String?
-  
-  // Detail
-  perihal             String              @db.Text
-  kodeBagian          String              // PSDM, KEU, UMUM
-  prioritas           Prioritas           @default(SEDANG)
-  status              StatusSuratKeluar   @default(DRAFT)
-  
-  // Metadata
-  catatan             String?             @db.Text
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-
-  // Relations
-  lampiran            Lampiran[]
-  tracking            TrackingSurat[]
-
-  @@map("surat_keluar_lampiran")
-  @@index([nomorAgenda])
-  @@index([nomorSurat])
-  @@index([kodeBagian])
-  @@index([status])
-}
 
 // ==================== DISPOSISI ====================
 
@@ -246,7 +182,6 @@ model Disposisi {
   instruksi       String              @db.Text    // Instruksi/catatan disposisi
   jenisDispo      String              // "TRANSFER", "REQUEST_LAMPIRAN", "APPROVAL", dll
   tahapProses     String              // "DITERIMA", "DIPROSES", dll - untuk tracking
-  prioritas       Prioritas           @default(SEDANG)
   status          StatusDisposisi     @default(PENDING)
   tenggatWaktu    DateTime?
   
@@ -274,9 +209,6 @@ model Lampiran {
   suratKeluarId   String?
   suratKeluar     SuratKeluar?        @relation(fields: [suratKeluarId], references: [id], onDelete: Cascade)
   
-  suratLampiranId String?
-  suratLampiran   SuratKeluarLampiran? @relation(fields: [suratLampiranId], references: [id], onDelete: Cascade)
-  
   // File Info
   namaFile        String              // Original filename
   namaTersimpan   String              // Hashed filename
@@ -288,10 +220,9 @@ model Lampiran {
   keterangan      String?
   uploadedAt      DateTime            @default(now())
 
-  @@map("lampiran")
+
   @@index([suratMasukId])
   @@index([suratKeluarId])
-  @@index([suratLampiranId])
 }
 
 // ==================== TRACKING SURAT ====================
@@ -306,9 +237,7 @@ model TrackingSurat {
   suratKeluarId   String?
   suratKeluar     SuratKeluar?        @relation(fields: [suratKeluarId], references: [id], onDelete: Cascade)
   
-  suratLampiranId String?
-  suratLampiran   SuratKeluarLampiran? @relation(fields: [suratLampiranId], references: [id], onDelete: Cascade)
-  
+ 
   // Tracking Info
   tahapProses     String              // "DITERIMA", "DIPROSES", "DISPOSISI_KETUA", dll
   posisiSaat      String              // Nama user/role saat ini handle
@@ -322,7 +251,6 @@ model TrackingSurat {
   @@map("tracking_surat")
   @@index([suratMasukId])
   @@index([suratKeluarId])
-  @@index([suratLampiranId])
   @@index([tahapProses])
   @@index([createdAt])
 }
@@ -337,22 +265,4 @@ model Settings {
   updatedAt       DateTime            @updatedAt
 
   @@map("settings")
-}
-
-// ==================== ARSIP ====================
-
-model Arsip {
-  id              String              @id @default(uuid())
-  tahun           Int
-  kategori        String
-  nomorSurat      String
-  perihal         String              @db.Text
-  filePath        String?
-  keterangan      String?             @db.Text
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-
-  @@map("arsip")
-  @@index([tahun])
-  @@index([kategori])
 }
