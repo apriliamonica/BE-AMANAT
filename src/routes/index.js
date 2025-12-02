@@ -1,5 +1,6 @@
 import express from 'express';
 import authRoutes from './authRoutes.js';
+import suratMasukRoutes from './suratMasukRoutes.js';
 import { prisma } from '../config/index.js';
 
 const router = express.Router();
@@ -31,5 +32,5 @@ router.get('/health', async (req, res) => {
 
 // Routes
 router.use('/auth', authRoutes);
-
+router.use('/surat-masuk', suratMasukRoutes);
 export default router;
