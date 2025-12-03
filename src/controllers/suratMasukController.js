@@ -1,6 +1,7 @@
+// src/controllers/suratMasukController.js (IMPROVED)
 import { ApiResponse } from "../utils/response.js";
 import { validateRequest } from "../utils/validators.js";
-import SuratMasukService from "../services/suratMasukService.js";
+import SuratMasukService from "../services/suratMasuk.service.js";
 
 export class SuratMasukController {
   constructor() {
@@ -10,7 +11,7 @@ export class SuratMasukController {
   // GET /surat-masuk
   list = async (req, res) => {
     try {
-      const { page, limit, search, status, kategori, prioritas } = req.query;
+      const { page, limit, search, status, kategori } = req.query;
 
       const result = await this.suratMasukService.list({
         page,
@@ -64,7 +65,6 @@ export class SuratMasukController {
           "asalSurat",
           "perihal",
           "kategori",
-          "namaPengirim",
         ],
         allowed: [
           "nomorSurat",
@@ -101,8 +101,41 @@ export class SuratMasukController {
   update = async (req, res) => {
     try {
       const { id } = req.params;
-      const updated = await this.suratMasukService.update(id, req.body);
+      const updated = await this.suratMasukService.update(
+        id,
+        req.body,
+        req.user.id
+      );
       return ApiResponse.success(res, updated, "Surat masuk berhasil diupdate");
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 400
+      );
+    }
+  };
+
+  // PUT /surat-masuk/:id/status
+  updateStatus = async (req, res) => {
+    try {
+      await validateRequest(req, {
+        required: ["status"],
+        allowed: ["status"],
+      });
+
+      const { id } = req.params;
+      const { status } = req.body;
+      const updated = await this.suratMasukService.updateStatus(
+        id,
+        status,
+        req.user.id
+      );
+      return ApiResponse.success(
+        res,
+        updated,
+        "Status surat masuk berhasil diupdate"
+      );
     } catch (error) {
       return ApiResponse.error(
         res,
@@ -123,6 +156,74 @@ export class SuratMasukController {
         res,
         error.message || "Terjadi kesalahan",
         error.statusCode || 400
+      );
+    }
+  };
+
+  // GET /surat-masuk/by-status/:status
+  getByStatus = async (req, res) => {
+    try {
+      const { status } = req.params;
+      const { page, limit } = req.query;
+
+      const result = await this.suratMasukService.getByStatus(status, {
+        page,
+        limit,
+      });
+
+      return ApiResponse.success(
+        res,
+        result,
+        `Data surat masuk dengan status ${status} berhasil diambil`
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 500
+      );
+    }
+  };
+
+  // GET /surat-masuk/pending
+  getPending = async (req, res) => {
+    try {
+      const { page, limit } = req.query;
+
+      const result = await this.suratMasukService.getPending({
+        page,
+        limit,
+      });
+
+      return ApiResponse.success(
+        res,
+        result,
+        "Data surat masuk pending berhasil diambil"
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 500
+      );
+    }
+  };
+
+  // GET /surat-masuk/stats
+  getStats = async (req, res) => {
+    try {
+      const result = await this.suratMasukService.getStats();
+
+      return ApiResponse.success(
+        res,
+        result,
+        "Data statistik surat masuk berhasil diambil"
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 500
       );
     }
   };

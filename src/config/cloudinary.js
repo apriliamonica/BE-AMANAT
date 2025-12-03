@@ -12,7 +12,7 @@ cloudinary.config({
 const imageStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "upt-pik/images",
+    folder: "amanat/images",
     allowed_formats: [
       "jpg",
       "jpeg",
@@ -36,7 +36,7 @@ const imageStorage = new CloudinaryStorage({
 const documentStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "upt-pik/documents",
+    folder: "amanat/documents",
     allowed_formats: [
       "pdf",
       "doc",
@@ -60,7 +60,7 @@ export const uploadMultiple = multer({
   storage: new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-      folder: "upt-pik/files",
+      folder: "amanat/files",
       allowed_formats: [
         "jpg",
         "jpeg",
