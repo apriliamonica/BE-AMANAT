@@ -1,162 +1,186 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+// src/services/trackingService.js
+import { prisma } from "../config/index.js";
 
 class TrackingService {
-  /**
-   * Get tracking lengkap untuk surat
-   */
-  async getTrackingSurat(
-    suratMasukId = null,
-    suratKeluarId = null,
-    suratLampiranId = null
-  ) {
-    try {
-      const where = {};
+  async getBySuratMasuk(suratMasukId) {
+    // Validasi surat masuk ada
+    const surat = await prisma.suratMasuk.findUnique({
+      where: { id: suratMasukId },
+    });
 
-      if (suratMasukId) where.suratMasukId = suratMasukId;
-      if (suratKeluarId) where.suratKeluarId = suratKeluarId;
-      if (suratLampiranId) where.suratLampiranId = suratLampiranId;
-
-      if (!suratMasukId && !suratKeluarId && !suratLampiranId) {
-        throw new Error("Harus ada referensi surat");
-      }
-
-      const tracking = await prisma.trackingSurat.findMany({
-        where,
-        include: {
-          createdBy: { select: { name: true, role: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      });
-
-      return {
-        success: true,
-        data: tracking,
-      };
-    } catch (error) {
+    if (!surat) {
+      const error = new Error("Surat masuk tidak ditemukan");
+      error.statusCode = 404;
       throw error;
     }
-  }
 
-  /**
-   * Get tracking history dengan pagination
-   */
-  async getTrackingHistory(filters = {}) {
-    try {
-      const { tahapProses, page = 1, limit = 20, startDate, endDate } = filters;
-
-      const skip = (page - 1) * limit;
-      const where = {};
-
-      if (tahapProses) where.tahapProses = tahapProses;
-
-      if (startDate || endDate) {
-        where.createdAt = {};
-        if (startDate) where.createdAt.gte = new Date(startDate);
-        if (endDate) where.createdAt.lte = new Date(endDate);
-      }
-
-      const [tracking, total] = await Promise.all([
-        prisma.trackingSurat.findMany({
-          where,
-          skip,
-          take: limit,
-          include: {
-            suratMasuk: {
-              select: { nomorSurat: true, perihal: true },
-            },
-            suratKeluar: {
-              select: { nomorSurat: true, perihal: true },
-            },
-            suratLampiran: {
-              select: { nomorSurat: true, perihal: true },
-            },
-            createdBy: { select: { name: true, role: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.trackingSurat.count({ where }),
-      ]);
-
-      return {
-        success: true,
-        data: tracking,
-        pagination: {
-          total,
-          page,
-          limit,
-          pages: Math.ceil(total / limit),
-        },
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Get statistik tracking per tahap
-   */
-  async getTrackingStats() {
-    try {
-      const stats = await prisma.trackingSurat.groupBy({
-        by: ["tahapProses"],
-        _count: true,
-        orderBy: {
-          _count: {
-            id: "desc",
+    const tracking = await prisma.trackingSurat.findMany({
+      where: { suratMasukId },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
           },
         },
-      });
+      },
+      orderBy: { createdAt: "asc" },
+    });
 
-      return {
-        success: true,
-        data: stats,
-      };
-    } catch (error) {
-      throw error;
-    }
+    return tracking;
   }
 
-  /**
-   * Get posisi surat saat ini
-   */
-  async getPositiSuratSaat(suratMasukId = null, suratKeluarId = null) {
-    try {
-      const where = {};
+  async getBySuratKeluar(suratKeluarId) {
+    // Validasi surat keluar ada
+    const surat = await prisma.suratKeluar.findUnique({
+      where: { id: suratKeluarId },
+    });
 
-      if (suratMasukId) where.suratMasukId = suratMasukId;
-      if (suratKeluarId) where.suratKeluarId = suratKeluarId;
-
-      if (!suratMasukId && !suratKeluarId) {
-        throw new Error("Harus ada referensi surat");
-      }
-
-      const lastTracking = await prisma.trackingSurat.findFirst({
-        where,
-        orderBy: { createdAt: "desc" },
-        include: {
-          createdBy: { select: { name: true, role: true } },
-        },
-      });
-
-      if (!lastTracking) {
-        throw new Error("Tracking tidak ditemukan");
-      }
-
-      return {
-        success: true,
-        data: {
-          tahapProses: lastTracking.tahapProses,
-          posisiSaat: lastTracking.posisiSaat,
-          aksiTerakhir: lastTracking.aksiDilakukan,
-          lastUpdated: lastTracking.createdAt,
-          updatedBy: lastTracking.createdBy,
-        },
-      };
-    } catch (error) {
+    if (!surat) {
+      const error = new Error("Surat keluar tidak ditemukan");
+      error.statusCode = 404;
       throw error;
     }
+
+    const tracking = await prisma.trackingSurat.findMany({
+      where: { suratKeluarId },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return tracking;
+  }
+
+  async getById(id) {
+    const tracking = await prisma.trackingSurat.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+        suratMasuk: {
+          select: {
+            id: true,
+            nomorSurat: true,
+            perihal: true,
+            status: true,
+          },
+        },
+        suratKeluar: {
+          select: {
+            id: true,
+            nomorSurat: true,
+            perihal: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!tracking) {
+      const error = new Error("Tracking tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return tracking;
+  }
+
+  async create(data, userId) {
+    const {
+      suratMasukId,
+      suratKeluarId,
+      tahapProses,
+      posisiSaat,
+      aksiDilakukan,
+      statusTracking,
+    } = data;
+
+    // Validasi: minimal satu surat harus ada
+    if (!suratMasukId && !suratKeluarId) {
+      const error = new Error(
+        "Minimal satu dari suratMasukId atau suratKeluarId harus diisi"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validasi: jika suratMasukId ada, periksa keberadaannya
+    if (suratMasukId) {
+      const surat = await prisma.suratMasuk.findUnique({
+        where: { id: suratMasukId },
+      });
+      if (!surat) {
+        const error = new Error("Surat masuk tidak ditemukan");
+        error.statusCode = 404;
+        throw error;
+      }
+    }
+
+    // Validasi: jika suratKeluarId ada, periksa keberadaannya
+    if (suratKeluarId) {
+      const surat = await prisma.suratKeluar.findUnique({
+        where: { id: suratKeluarId },
+      });
+      if (!surat) {
+        const error = new Error("Surat keluar tidak ditemukan");
+        error.statusCode = 404;
+        throw error;
+      }
+    }
+
+    const created = await prisma.trackingSurat.create({
+      data: {
+        suratMasukId: suratMasukId || null,
+        suratKeluarId: suratKeluarId || null,
+        tahapProses,
+        posisiSaat,
+        aksiDilakukan,
+        statusTracking: statusTracking || "PROSES",
+        createdById: userId,
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return created;
+  }
+
+  async getStatsByTahap(tahapProses) {
+    const stats = await prisma.trackingSurat.groupBy({
+      by: ["tahapProses", "statusTracking"],
+      where: { tahapProses },
+      _count: {
+        id: true,
+      },
+    });
+
+    return stats;
   }
 }
 
-module.exports = new TrackingService();
+export default TrackingService;

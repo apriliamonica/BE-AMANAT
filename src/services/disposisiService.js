@@ -1,255 +1,369 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+// src/services/disposisiService.js
+import { prisma } from "../config/index.js";
 
 class DisposisiService {
-  /**
-   * Buat disposisi surat masuk
-   * Untuk tracking & transfer surat antar role
-   */
-  async createDisposisi(data, userId, userRole) {
-    try {
-      const {
-        suratMasukId,
-        suratKeluarId,
-        toUserId,
-        instruksi,
-        jenisDispo = "TRANSFER",
-        prioritas = "SEDANG",
-        tenggatWaktu,
-      } = data;
+  async list(filters = {}) {
+    const { status, toUserId, page = 1, limit = 10 } = filters;
 
-      // Validasi: salah satu suratMasukId atau suratKeluarId harus ada
-      if (!suratMasukId && !suratKeluarId) {
-        throw new Error("Harus ada referensi surat masuk atau surat keluar");
-      }
-      // Ambil surat untuk validasi
-      let surat = null;
-      let tahapProses = "";
+    const take = Number(limit) || 10;
+    const skip = (Number(page) - 1) * take;
 
-      if (suratMasukId) {
-        surat = await prisma.suratMasuk.findUnique({
-          where: { id: suratMasukId },
-        });
-        tahapProses = surat?.status || "UNKNOWN";
-      } else if (suratKeluarId) {
-        surat = await prisma.suratKeluar.findUnique({
-          where: { id: suratKeluarId },
-        });
-        tahapProses = surat?.status || "UNKNOWN";
-      }
+    const where = {};
 
-      if (!surat) {
-        throw new Error("Surat tidak ditemukan");
-      }
+    if (status) where.status = status;
+    if (toUserId) where.toUserId = toUserId;
 
-      // Create disposisi
-      const disposisi = await prisma.disposisi.create({
-        data: {
-          suratMasukId: suratMasukId || null,
-          suratKeluarId: suratKeluarId || null,
-          fromUserId: userId,
-          toUserId,
-          instruksi,
-          jenisDispo,
-          tahapProses,
-          prioritas,
-          tenggatWaktu: tenggatWaktu ? new Date(tenggatWaktu) : null,
-          status: "PENDING",
-        },
-        include: {
-          fromUser: { select: { name: true, role: true } },
-          toUser: { select: { name: true, role: true } },
-        },
-      });
-
-      // Update surat status menjadi disposisi
-      if (suratMasukId && tahapProses === "DIPROSES") {
-        await prisma.suratMasuk.update({
-          where: { id: suratMasukId },
-          data: { status: "DISPOSISI_KETUA" },
-        });
-      }
-
-      // Create tracking
-      await prisma.trackingSurat.create({
-        data: {
-          suratMasukId: suratMasukId || null,
-          suratKeluarId: suratKeluarId || null,
-          tahapProses: `DISPOSISI_${jenisDispo}`,
-          posisiSaat: disposisi.toUser.name,
-          aksiDilakukan: `Disposisi dikirim ke ${
-            disposisi.toUser.name
-          }: ${instruksi.substring(0, 50)}...`,
-          statusTracking: "PENDING",
-          createdById: userId,
-        },
-      });
-
-      return {
-        success: true,
-        message: "Disposisi berhasil dibuat",
-        data: disposisi,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Get disposisi dengan filter
-   */
-  async getDisposisi(filters = {}, userId, userRole) {
-    try {
-      const {
-        status = "PENDING",
-        jenisDispo,
-        page = 1,
-        limit = 10,
-        forMe = false,
-      } = filters;
-
-      const skip = (page - 1) * limit;
-
-      const where = {};
-
-      if (status) where.status = status;
-      if (jenisDispo) where.jenisDispo = jenisDispo;
-
-      // Jika forMe=true, hanya disposisi untuk user ini
-      if (forMe) {
-        where.toUserId = userId;
-      }
-
-      const [disposisi, total] = await Promise.all([
-        prisma.disposisi.findMany({
-          where,
-          skip,
-          take: limit,
-          include: {
-            suratMasuk: {
-              select: {
-                id: true,
-                nomorSurat: true,
-                perihal: true,
-                status: true,
-              },
-            },
-            suratKeluar: {
-              select: {
-                id: true,
-                nomorSurat: true,
-                perihal: true,
-                status: true,
-              },
-            },
-            fromUser: { select: { name: true, role: true } },
-            toUser: { select: { name: true, role: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.disposisi.count({ where }),
-      ]);
-
-      return {
-        success: true,
-        data: disposisi,
-        pagination: {
-          total,
-          page,
-          limit,
-          pages: Math.ceil(total / limit),
-        },
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Update status disposisi
-   */
-  async updateDisposisiStatus(disposisiId, newStatus, userId, catatan = "") {
-    try {
-      const disposisi = await prisma.disposisi.findUnique({
-        where: { id: disposisiId },
-      });
-
-      if (!disposisi) {
-        throw new Error("Disposisi tidak ditemukan");
-      }
-
-      const updated = await prisma.disposisi.update({
-        where: { id: disposisiId },
-        data: {
-          status: newStatus,
-          updatedAt: new Date(),
-        },
-        include: {
-          fromUser: { select: { name: true } },
-          toUser: { select: { name: true } },
-        },
-      });
-
-      // Create tracking untuk update disposisi
-      const suitType = disposisi.suratMasukId
-        ? "suratMasukId"
-        : "suratKeluarId";
-      const suitId = disposisi.suratMasukId || disposisi.suratKeluarId;
-
-      await prisma.trackingSurat.create({
-        data: {
-          [suitType]: suitId,
-          tahapProses: `DISPOSISI_${newStatus}`,
-          posisiSaat: disposisi.toUser.name || "Unknown",
-          aksiDilakukan: `Disposisi ${newStatus}${
-            catatan ? ": " + catatan : ""
-          }`,
-          statusTracking: newStatus,
-          createdById: userId,
-        },
-      });
-
-      return {
-        success: true,
-        message: `Disposisi status diubah ke ${newStatus}`,
-        data: updated,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Get disposisi untuk surat tertentu
-   */
-  async getDisposisiForSurat(suratMasukId = null, suratKeluarId = null) {
-    try {
-      const where = {};
-
-      if (suratMasukId) where.suratMasukId = suratMasukId;
-      if (suratKeluarId) where.suratKeluarId = suratKeluarId;
-
-      if (!suratMasukId && !suratKeluarId) {
-        throw new Error("Harus ada referensi surat");
-      }
-
-      const disposisi = await prisma.disposisi.findMany({
+    const [items, total] = await Promise.all([
+      prisma.disposisi.findMany({
         where,
+        skip,
+        take,
         include: {
-          fromUser: { select: { name: true, role: true } },
-          toUser: { select: { name: true, role: true } },
+          fromUser: {
+            select: {
+              id: true,
+              nama_lengkap: true,
+              email: true,
+              role: true,
+            },
+          },
+          toUser: {
+            select: {
+              id: true,
+              nama_lengkap: true,
+              email: true,
+              role: true,
+            },
+          },
+          suratMasuk: {
+            select: {
+              id: true,
+              nomorSurat: true,
+              perihal: true,
+              status: true,
+            },
+          },
+          suratKeluar: {
+            select: {
+              id: true,
+              nomorSurat: true,
+              perihal: true,
+              status: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
-      });
+      }),
+      prisma.disposisi.count({ where }),
+    ]);
 
-      return {
-        success: true,
-        data: disposisi,
-      };
-    } catch (error) {
+    return { items, total, page: Number(page), limit: take };
+  }
+
+  async getById(id) {
+    const disposisi = await prisma.disposisi.findUnique({
+      where: { id },
+      include: {
+        fromUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+        toUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+        suratMasuk: true,
+        suratKeluar: true,
+      },
+    });
+
+    if (!disposisi) {
+      const error = new Error("Disposisi tidak ditemukan");
+      error.statusCode = 404;
       throw error;
     }
+
+    return disposisi;
+  }
+
+  async create(data, userId) {
+    const {
+      suratMasukId,
+      suratKeluarId,
+      toUserId,
+      instruksi,
+      jenisDispo,
+      tahapProses,
+      tenggatWaktu,
+    } = data;
+
+    // Validasi: minimal satu surat harus ada
+    if (!suratMasukId && !suratKeluarId) {
+      const error = new Error(
+        "Minimal satu dari suratMasukId atau suratKeluarId harus diisi"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validasi: jika suratMasukId ada, periksa keberadaannya
+    if (suratMasukId) {
+      const surat = await prisma.suratMasuk.findUnique({
+        where: { id: suratMasukId },
+      });
+      if (!surat) {
+        const error = new Error("Surat masuk tidak ditemukan");
+        error.statusCode = 404;
+        throw error;
+      }
+    }
+
+    // Validasi: jika suratKeluarId ada, periksa keberadaannya
+    if (suratKeluarId) {
+      const surat = await prisma.suratKeluar.findUnique({
+        where: { id: suratKeluarId },
+      });
+      if (!surat) {
+        const error = new Error("Surat keluar tidak ditemukan");
+        error.statusCode = 404;
+        throw error;
+      }
+    }
+
+    // Validasi: toUser harus ada
+    const toUser = await prisma.user.findUnique({
+      where: { id: toUserId },
+    });
+    if (!toUser) {
+      const error = new Error("User penerima disposisi tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Validasi jenis disposisi
+    const validJenis = ["TRANSFER", "REQUEST_LAMPIRAN", "APPROVAL", "REVISI"];
+    if (!validJenis.includes(jenisDispo)) {
+      const error = new Error("Jenis disposisi tidak valid");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const created = await prisma.disposisi.create({
+      data: {
+        suratMasukId: suratMasukId || null,
+        suratKeluarId: suratKeluarId || null,
+        fromUserId: userId,
+        toUserId,
+        instruksi,
+        jenisDispo,
+        tahapProses: tahapProses || "PENDING",
+        status: "PENDING",
+        tenggatWaktu: tenggatWaktu ? new Date(tenggatWaktu) : null,
+      },
+      include: {
+        fromUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+        toUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return created;
+  }
+
+  async update(id, data) {
+    const existing = await prisma.disposisi.findUnique({ where: { id } });
+
+    if (!existing) {
+      const error = new Error("Disposisi tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const { instruksi, jenisDispo, tahapProses, tenggatWaktu } = data;
+
+    const updateData = {};
+    if (instruksi) updateData.instruksi = instruksi;
+    if (jenisDispo) updateData.jenisDispo = jenisDispo;
+    if (tahapProses) updateData.tahapProses = tahapProses;
+    if (tenggatWaktu) updateData.tenggatWaktu = new Date(tenggatWaktu);
+
+    const updated = await prisma.disposisi.update({
+      where: { id },
+      data: updateData,
+      include: {
+        fromUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+        toUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  async updateStatus(id, status, userId) {
+    const existing = await prisma.disposisi.findUnique({ where: { id } });
+
+    if (!existing) {
+      const error = new Error("Disposisi tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Validasi: user yang update harus penerima disposisi
+    if (existing.toUserId !== userId) {
+      const error = new Error(
+        "Hanya penerima disposisi yang dapat mengubah status"
+      );
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const validStatuses = [
+      "PENDING",
+      "DITERIMA",
+      "DIPROSES",
+      "SELESAI",
+      "DITOLAK",
+    ];
+    if (!validStatuses.includes(status)) {
+      const error = new Error("Status tidak valid");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updated = await prisma.disposisi.update({
+      where: { id },
+      data: {
+        status,
+        selesaiAt: status === "SELESAI" ? new Date() : null,
+      },
+      include: {
+        fromUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+        toUser: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  async remove(id) {
+    const existing = await prisma.disposisi.findUnique({ where: { id } });
+
+    if (!existing) {
+      const error = new Error("Disposisi tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Hanya bisa delete jika status PENDING
+    if (existing.status !== "PENDING") {
+      const error = new Error(
+        "Hanya disposisi dengan status PENDING yang dapat dihapus"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    await prisma.disposisi.delete({ where: { id } });
+    return true;
+  }
+
+  async getByUser(userId, filters = {}) {
+    const { status, page = 1, limit = 10 } = filters;
+
+    const take = Number(limit) || 10;
+    const skip = (Number(page) - 1) * take;
+
+    const where = { toUserId: userId };
+
+    if (status) where.status = status;
+
+    const [items, total] = await Promise.all([
+      prisma.disposisi.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          fromUser: {
+            select: {
+              id: true,
+              nama_lengkap: true,
+              email: true,
+              role: true,
+            },
+          },
+          suratMasuk: {
+            select: {
+              id: true,
+              nomorSurat: true,
+              perihal: true,
+              status: true,
+            },
+          },
+          suratKeluar: {
+            select: {
+              id: true,
+              nomorSurat: true,
+              perihal: true,
+              status: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.disposisi.count({ where }),
+    ]);
+
+    return { items, total, page: Number(page), limit: take };
   }
 }
 
-module.exports = new DisposisiService();
+export default DisposisiService;

@@ -1,6 +1,6 @@
 import { ApiResponse } from "../utils/response.js";
 import { validateRequest } from "../utils/validators.js";
-import SuratMasukService from "../services/suratMasuk.service.js";
+import SuratMasukService from "../services/suratMasukService.js";
 
 export class SuratMasukController {
   constructor() {

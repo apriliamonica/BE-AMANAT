@@ -1,5 +1,5 @@
 // src/middleware/authorize.js
-import { errorResponse } from "../utils/response.js";
+import { ApiResponse } from "../utils/response.js";
 
 /**
  * Authorize Middleware - Cek role user
@@ -10,12 +10,12 @@ export const authorize = (allowedRoles = []) => {
     try {
       // 1. Cek user sudah authenticated (dari auth middleware)
       if (!req.user) {
-        return errorResponse(res, 401, "User tidak authenticated");
+        return ApiResponse.error(res, 401, "User tidak authenticated");
       }
 
       // 2. Cek role user
       if (!allowedRoles.includes(req.user.role)) {
-        return errorResponse(
+        return ApiResponse.error(
           res,
           403,
           `Akses denied. Role Anda: ${
@@ -27,7 +27,7 @@ export const authorize = (allowedRoles = []) => {
       // 3. Lanjut ke next handler
       next();
     } catch (error) {
-      return errorResponse(res, 500, `Authorize error: ${error.message}`);
+      return ApiResponse.error(res, 500, `Authorize error: ${error.message}`);
     }
   };
 };
@@ -39,7 +39,7 @@ export const authorizeMultiple = (roleGroups, logic = "OR") => {
   return (req, res, next) => {
     try {
       if (!req.user) {
-        return errorResponse(res, 401, "User tidak authenticated");
+        return ApiResponse.error(res, 401, "User tidak authenticated");
       }
 
       const userRole = req.user.role;
@@ -55,7 +55,7 @@ export const authorizeMultiple = (roleGroups, logic = "OR") => {
       }
 
       if (!hasAccess) {
-        return errorResponse(
+        return ApiResponse.error(
           res,
           403,
           `Akses denied. Role Anda tidak memiliki izin untuk mengakses resource ini`
@@ -64,7 +64,7 @@ export const authorizeMultiple = (roleGroups, logic = "OR") => {
 
       next();
     } catch (error) {
-      return errorResponse(res, 500, `Authorize error: ${error.message}`);
+      return ApiResponse.error(res, 500, `Authorize error: ${error.message}`);
     }
   };
 };

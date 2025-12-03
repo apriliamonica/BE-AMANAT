@@ -1,222 +1,167 @@
 // src/controllers/lampiranController.js
-const prisma = require('../config/database');
-const { successResponse, errorResponse } = require('../utils/response');
-const { deleteFile } = require('../middleware/upload');
-const path = require('path');
+import { ApiResponse } from "../utils/response.js";
+import { validateRequest } from "../utils/validators.js";
+import LampiranService from "../services/suratLampiranService.js";
+import { uploadMultiple } from "../config/cloudinary.js";
 
-/**
- * Upload lampiran untuk surat masuk
- */
-const uploadLampiranSuratMasuk = async (req, res, next) => {
-  try {
-    const { suratMasukId } = req.params;
-    const { keterangan } = req.body;
-
-    if (!req.files || req.files.length === 0) {
-      return errorResponse(res, 'Tidak ada file yang diupload', 400);
-    }
-
-    // Check if surat exists
-    const surat = await prisma.suratMasuk.findUnique({
-      where: { id: suratMasukId }
-    });
-
-    if (!surat) {
-      // Delete uploaded files
-      req.files.forEach(file => deleteFile(file.path));
-      return errorResponse(res, 'Surat tidak ditemukan', 404);
-    }
-
-    // Create lampiran records
-    const lampiran = await Promise.all(
-      req.files.map(file => 
-        prisma.lampiran.create({
-          data: {
-            suratMasukId,
-            namaFile: file.originalname,
-            namaTersimpan: file.filename,
-            path: file.path,
-            ukuran: file.size,
-            mimeType: file.mimetype,
-            keterangan
-          }
-        })
-      )
-    );
-
-    return successResponse(res, lampiran, 'File berhasil diupload', 201);
-  } catch (error) {
-    // Clean up uploaded files on error
-    if (req.files) {
-      req.files.forEach(file => deleteFile(file.path));
-    }
-    next(error);
+export class LampiranController {
+  constructor() {
+    this.lampiranService = new LampiranService();
   }
-};
 
-/**
- * Upload lampiran untuk surat keluar
- */
-const uploadLampiranSuratKeluar = async (req, res, next) => {
-  try {
-    const { suratKeluarId } = req.params;
-    const { keterangan } = req.body;
+  // GET /lampiran/surat-masuk/:suratMasukId
+  getBySuratMasuk = async (req, res) => {
+    try {
+      const { suratMasukId } = req.params;
 
-    if (!req.files || req.files.length === 0) {
-      return errorResponse(res, 'Tidak ada file yang diupload', 400);
+      const result = await this.lampiranService.getBySuratMasuk(suratMasukId);
+      return ApiResponse.success(
+        res,
+        result,
+        "Lampiran surat masuk berhasil diambil"
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 500
+      );
     }
+  };
 
-    const surat = await prisma.suratKeluar.findUnique({
-      where: { id: suratKeluarId }
-    });
+  // GET /lampiran/surat-keluar/:suratKeluarId
+  getBySuratKeluar = async (req, res) => {
+    try {
+      const { suratKeluarId } = req.params;
 
-    if (!surat) {
-      req.files.forEach(file => deleteFile(file.path));
-      return errorResponse(res, 'Surat tidak ditemukan', 404);
+      const result = await this.lampiranService.getBySuratKeluar(suratKeluarId);
+      return ApiResponse.success(
+        res,
+        result,
+        "Lampiran surat keluar berhasil diambil"
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 500
+      );
     }
+  };
 
-    const lampiran = await Promise.all(
-      req.files.map(file => 
-        prisma.lampiran.create({
-          data: {
-            suratKeluarId,
-            namaFile: file.originalname,
-            namaTersimpan: file.filename,
-            path: file.path,
-            ukuran: file.size,
-            mimeType: file.mimetype,
-            keterangan
-          }
-        })
-      )
-    );
-
-    return successResponse(res, lampiran, 'File berhasil diupload', 201);
-  } catch (error) {
-    if (req.files) {
-      req.files.forEach(file => deleteFile(file.path));
+  // GET /lampiran/:id
+  detail = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const lampiran = await this.lampiranService.getById(id);
+      return ApiResponse.success(
+        res,
+        lampiran,
+        "Detail lampiran berhasil diambil"
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 404
+      );
     }
-    next(error);
-  }
-};
+  };
 
-/**
- * Get lampiran by ID
- */
-const getLampiranById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
+  // POST /lampiran/surat-masuk/:suratMasukId
+  uploadSuratMasuk = async (req, res) => {
+    try {
+      const { suratMasukId } = req.params;
+      const { keterangan } = req.body;
 
-    const lampiran = await prisma.lampiran.findUnique({
-      where: { id }
-    });
-
-    if (!lampiran) {
-      return errorResponse(res, 'Lampiran tidak ditemukan', 404);
-    }
-
-    return successResponse(res, lampiran, 'Lampiran berhasil diambil');
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Download lampiran
- */
-const downloadLampiran = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const lampiran = await prisma.lampiran.findUnique({
-      where: { id }
-    });
-
-    if (!lampiran) {
-      return errorResponse(res, 'Lampiran tidak ditemukan', 404);
-    }
-
-    // Send file
-    res.download(lampiran.path, lampiran.namaFile, (err) => {
-      if (err) {
-        console.error('Error downloading file:', err);
-        return errorResponse(res, 'Error saat download file', 500);
+      if (!req.file) {
+        return ApiResponse.error(res, "File harus diupload", 400);
       }
-    });
-  } catch (error) {
-    next(error);
-  }
-};
 
-/**
- * Delete lampiran
- */
-const deleteLampiran = async (req, res, next) => {
-  try {
-    const { id } = req.params;
+      const created = await this.lampiranService.createSuratMasuk(
+        suratMasukId,
+        req.file,
+        keterangan
+      );
 
-    const lampiran = await prisma.lampiran.findUnique({
-      where: { id }
-    });
-
-    if (!lampiran) {
-      return errorResponse(res, 'Lampiran tidak ditemukan', 404);
+      return ApiResponse.success(
+        res,
+        created,
+        "Lampiran surat masuk berhasil diupload",
+        201
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 400
+      );
     }
+  };
 
-    // Delete file from disk
-    deleteFile(lampiran.path);
+  // POST /lampiran/surat-keluar/:suratKeluarId
+  uploadSuratKeluar = async (req, res) => {
+    try {
+      const { suratKeluarId } = req.params;
+      const { keterangan } = req.body;
 
-    // Delete from database
-    await prisma.lampiran.delete({ where: { id } });
+      if (!req.file) {
+        return ApiResponse.error(res, "File harus diupload", 400);
+      }
 
-    return successResponse(res, null, 'Lampiran berhasil dihapus');
-  } catch (error) {
-    next(error);
-  }
-};
+      const created = await this.lampiranService.createSuratKeluar(
+        suratKeluarId,
+        req.file,
+        keterangan
+      );
 
-/**
- * Get all lampiran for surat masuk
- */
-const getLampiranSuratMasuk = async (req, res, next) => {
-  try {
-    const { suratMasukId } = req.params;
+      return ApiResponse.success(
+        res,
+        created,
+        "Lampiran surat keluar berhasil diupload",
+        201
+      );
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 400
+      );
+    }
+  };
 
-    const lampiran = await prisma.lampiran.findMany({
-      where: { suratMasukId },
-      orderBy: { uploadedAt: 'desc' }
-    });
+  // DELETE /lampiran/:id
+  delete = async (req, res) => {
+    try {
+      const { id } = req.params;
+      await this.lampiranService.remove(id);
+      return ApiResponse.success(res, null, "Lampiran berhasil dihapus");
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 400
+      );
+    }
+  };
 
-    return successResponse(res, lampiran, 'Lampiran berhasil diambil');
-  } catch (error) {
-    next(error);
-  }
-};
+  // PUT /lampiran/:id
+  update = async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { keterangan } = req.body;
 
-/**
- * Get all lampiran for surat keluar
- */
-const getLampiranSuratKeluar = async (req, res, next) => {
-  try {
-    const { suratKeluarId } = req.params;
-
-    const lampiran = await prisma.lampiran.findMany({
-      where: { suratKeluarId },
-      orderBy: { uploadedAt: 'desc' }
-    });
-
-    return successResponse(res, lampiran, 'Lampiran berhasil diambil');
-  } catch (error) {
-    next(error);
-  }
-};
-
-module.exports = {
-  uploadLampiranSuratMasuk,
-  uploadLampiranSuratKeluar,
-  getLampiranById,
-  downloadLampiran,
-  deleteLampiran,
-  getLampiranSuratMasuk,
-  getLampiranSuratKeluar
-};
+      const updated = await this.lampiranService.updateKeterangan(
+        id,
+        keterangan
+      );
+      return ApiResponse.success(res, updated, "Lampiran berhasil diupdate");
+    } catch (error) {
+      return ApiResponse.error(
+        res,
+        error.message || "Terjadi kesalahan",
+        error.statusCode || 400
+      );
+    }
+  };
+}

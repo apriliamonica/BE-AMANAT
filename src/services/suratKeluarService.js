@@ -1,333 +1,310 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+// src/services/suratKeluarService.js
+import { prisma } from "../config/index.js";
 
 class SuratKeluarService {
-  /**
-   * Buat surat keluar baru (TAHAP 1: DRAFT)
-   * Role: Sekretaris Kantor (Admin)
-   */
-  async createSuratKeluar(data, userId) {
-    try {
-      const {
-        nomorSurat,
-        tanggalSurat,
-        tujuanSurat,
-        perihal,
-        kategori,
-        prioritas = "SEDANG",
-      } = data;
+  async list(filters = {}) {
+    const { status, kategori, page = 1, limit = 10, search } = filters;
 
-      // Create surat keluar
-      const suratKeluar = await prisma.suratKeluar.create({
-        data: {
-          nomorSurat,
-          tanggalSurat: new Date(tanggalSurat),
-          tujuanSurat,
-          perihal,
-          kategori,
-          prioritas,
-          status: "DRAFT",
-          createdById: userId,
-        },
-      });
+    const take = Number(limit) || 10;
+    const skip = (Number(page) - 1) * take;
 
-      // Create tracking entry
-      await prisma.trackingSurat.create({
-        data: {
-          suratKeluarId: suratKeluar.id,
-          tahapProses: "DRAFT",
-          posisiSaat: "Sekretaris Kantor",
-          aksiDilakukan: "Membuat draft surat keluar",
-          statusTracking: "DRAFT",
-          createdById: userId,
-        },
-      });
+    const where = {};
 
-      return {
-        success: true,
-        message: "Surat keluar berhasil dibuat (draft)",
-        data: suratKeluar,
-      };
-    } catch (error) {
-      throw error;
+    if (status) where.status = status;
+    if (kategori) where.kategori = kategori;
+
+    if (search) {
+      where.OR = [
+        { nomorSurat: { contains: search, mode: "insensitive" } },
+        { perihal: { contains: search, mode: "insensitive" } },
+        { tujuanSurat: { contains: search, mode: "insensitive" } },
+      ];
     }
-  }
 
-  /**
-   * Get surat keluar dengan filtering
-   */
-  async getSuratKeluar(filters = {}, userId, userRole) {
-    try {
-      const {
-        status,
-        kategori,
-        prioritas,
-        page = 1,
-        limit = 10,
-        search,
-      } = filters;
-
-      const skip = (page - 1) * limit;
-
-      const where = {};
-
-      if (status) where.status = status;
-      if (kategori) where.kategori = kategori;
-      if (prioritas) where.prioritas = prioritas;
-
-      if (search) {
-        where.OR = [
-          { nomorSurat: { contains: search, mode: "insensitive" } },
-          { tujuanSurat: { contains: search, mode: "insensitive" } },
-          { perihal: { contains: search, mode: "insensitive" } },
-        ];
-      }
-
-      const [suratKeluar, total] = await Promise.all([
-        prisma.suratKeluar.findMany({
-          where,
-          skip,
-          take: limit,
-          include: {
-            createdBy: {
-              select: { id: true, name: true, role: true },
-            },
-            tracking: {
-              orderBy: { createdAt: "desc" },
-            },
-            lampiran: {
-              select: {
-                id: true,
-                namaFile: true,
-                ukuran: true,
-                mimeType: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.suratKeluar.count({ where }),
-      ]);
-
-      // Add status per role
-      const suratWithRoleStatus = suratKeluar.map((surat) => ({
-        ...surat,
-        statusForMe: this.getStatusPerRole(surat, userRole),
-      }));
-
-      return {
-        success: true,
-        data: suratWithRoleStatus,
-        pagination: {
-          total,
-          page,
-          limit,
-          pages: Math.ceil(total / limit),
-        },
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Get surat keluar by ID
-   */
-  async getSuratKeluarById(suratKeluarId) {
-    try {
-      const surat = await prisma.suratKeluar.findUnique({
-        where: { id: suratKeluarId },
+    const [items, total] = await Promise.all([
+      prisma.suratKeluar.findMany({
+        where,
+        skip,
+        take,
         include: {
           createdBy: {
-            select: { id: true, name: true, email: true, role: true },
+            select: {
+              id: true,
+              nama_lengkap: true,
+              email: true,
+            },
           },
           lampiran: {
             select: {
               id: true,
               namaFile: true,
               ukuran: true,
-              mimeType: true,
-              uploadedAt: true,
             },
-          },
-          tracking: {
-            include: {
-              createdBy: { select: { name: true, role: true } },
-            },
-            orderBy: { createdAt: "desc" },
           },
         },
-      });
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.suratKeluar.count({ where }),
+    ]);
 
-      if (!surat) {
-        throw new Error("Surat keluar tidak ditemukan");
-      }
+    return { items, total, page: Number(page), limit: take };
+  }
 
-      return {
-        success: true,
-        data: surat,
-      };
-    } catch (error) {
+  async getById(id) {
+    const surat = await prisma.suratKeluar.findUnique({
+      where: { id },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+            role: true,
+          },
+        },
+        lampiran: true,
+        tracking: {
+          orderBy: { createdAt: "asc" },
+        },
+        disposisi: true,
+      },
+    });
+
+    if (!surat) {
+      const error = new Error("Surat keluar tidak ditemukan");
+      error.statusCode = 404;
       throw error;
     }
+
+    return surat;
   }
-  /**
-   * Update status surat keluar
-   */
-  async updateStatusSurat(suratKeluarId, newStatus, userId, userRole) {
-    try {
-      const surat = await prisma.suratKeluar.findUnique({
-        where: { id: suratKeluarId },
-      });
 
-      if (!surat) {
-        throw new Error("Surat keluar tidak ditemukan");
-      }
+  async create(data, userId) {
+    const {
+      nomorSurat,
+      tanggalSurat,
+      tujuanSurat,
+      perihal,
+      kategori,
+      catatan,
+    } = data;
 
-      const validTransitions = this.getValidStatusTransitions(
-        surat.status,
-        userRole
+    // Validasi nomor surat tidak duplikat
+    const existingNomor = await prisma.suratKeluar.findFirst({
+      where: { nomorSurat },
+    });
+
+    if (existingNomor) {
+      const error = new Error("Nomor surat sudah digunakan");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Validasi kategori valid
+    const validCategories = [
+      "UNDANGAN",
+      "PERMOHONAN",
+      "PEMBERITAHUAN",
+      "VERIFIKASI",
+      "AUDIT",
+      "LAINNYA",
+    ];
+    if (!validCategories.includes(kategori)) {
+      const error = new Error("Kategori tidak valid");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const created = await prisma.suratKeluar.create({
+      data: {
+        nomorSurat,
+        tanggalSurat: new Date(tanggalSurat),
+        tujuanSurat,
+        perihal,
+        kategori,
+        catatan: catatan || null,
+        status: "DRAFT",
+        createdById: userId,
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create tracking record
+    await prisma.trackingSurat.create({
+      data: {
+        suratKeluarId: created.id,
+        tahapProses: "DRAFT",
+        posisiSaat: "SEKRETARIS_KANTOR",
+        aksiDilakukan: "Membuat draft surat keluar",
+        statusTracking: "DRAFT",
+        createdById: userId,
+      },
+    });
+
+    return created;
+  }
+
+  async update(id, data) {
+    const existing = await prisma.suratKeluar.findUnique({ where: { id } });
+
+    if (!existing) {
+      const error = new Error("Surat keluar tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Hanya bisa update jika status masih DRAFT atau REVIEW_SEKPENGURUS
+    if (!["DRAFT", "REVIEW_SEKPENGURUS"].includes(existing.status)) {
+      const error = new Error(
+        `Tidak dapat mengubah surat dengan status ${existing.status}`
       );
-      if (!validTransitions.includes(newStatus)) {
-        throw new Error(
-          `Transisi status tidak diperbolehkan: ${surat.status} -> ${newStatus}`
-        );
-      }
-
-      const updated = await prisma.suratKeluar.update({
-        where: { id: suratKeluarId },
-        data: {
-          status: newStatus,
-          tanggalDikirim: newStatus === "TERKIRIM" ? new Date() : null,
-          updatedAt: new Date(),
-        },
-      });
-
-      await prisma.trackingSurat.create({
-        data: {
-          suratKeluarId: suratKeluarId,
-          tahapProses: newStatus,
-          posisiSaat: this.getPositionForStatus(newStatus),
-          aksiDilakukan: `Status diubah ke ${newStatus}`,
-          statusTracking: newStatus,
-          createdById: userId,
-        },
-      });
-
-      return {
-        success: true,
-        message: `Status surat diubah ke ${newStatus}`,
-        data: updated,
-      };
-    } catch (error) {
+      error.statusCode = 400;
       throw error;
     }
+
+    const {
+      nomorSurat,
+      tanggalSurat,
+      tujuanSurat,
+      perihal,
+      kategori,
+      catatan,
+    } = data;
+
+    // Validasi kategori jika diubah
+    if (kategori) {
+      const validCategories = [
+        "UNDANGAN",
+        "PERMOHONAN",
+        "PEMBERITAHUAN",
+        "VERIFIKASI",
+        "AUDIT",
+        "LAINNYA",
+      ];
+      if (!validCategories.includes(kategori)) {
+        const error = new Error("Kategori tidak valid");
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    // Validasi nomor surat jika diubah
+    if (nomorSurat && nomorSurat !== existing.nomorSurat) {
+      const existingNomor = await prisma.suratKeluar.findFirst({
+        where: { nomorSurat },
+      });
+      if (existingNomor) {
+        const error = new Error("Nomor surat sudah digunakan");
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    const updateData = {};
+    if (nomorSurat) updateData.nomorSurat = nomorSurat;
+    if (tanggalSurat) updateData.tanggalSurat = new Date(tanggalSurat);
+    if (tujuanSurat) updateData.tujuanSurat = tujuanSurat;
+    if (perihal) updateData.perihal = perihal;
+    if (kategori) updateData.kategori = kategori;
+    if (catatan !== undefined) updateData.catatan = catatan || null;
+
+    const updated = await prisma.suratKeluar.update({
+      where: { id },
+      data: updateData,
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return updated;
   }
 
-  /**
-   * Helper: Get status per role
-   */
-  getStatusPerRole(surat, userRole) {
-    const statusMapping = {
-      ADMIN: {
-        DRAFT: "DRAFT DIBUAT - MONITORING",
-        REVIEW_SEKPENGURUS: "DI SEKPENGURUS - REVIEW",
-        LAMPIRAN_KABAG: "DI KABAG - UPLOAD LAMPIRAN",
-        REVIEW_KETUA: "DI KETUA - REVIEW & TTD",
-        TERKIRIM: "TERKIRIM - SELESAI",
-        DIBATALKAN: "DIBATALKAN",
-      },
-      SEKRETARIS_PENGURUS: {
-        DRAFT: "MENUNGGU DRAFT",
-        REVIEW_SEKPENGURUS: "PERLU REVIEW",
-        LAMPIRAN_KABAG: "LAMPIRAN REQUEST",
-        REVIEW_KETUA: "LAMPIRAN DITERIMA - KE KETUA",
-        TERKIRIM: "TERKIRIM - SELESAI",
-        DIBATALKAN: "DIBATALKAN",
-      },
-      KEPALA_BAGIAN_PSDM: {
-        DRAFT: "BELUM TIBA",
-        REVIEW_SEKPENGURUS: "BELUM TIBA",
-        LAMPIRAN_KABAG: "UPLOAD LAMPIRAN DIPERLUKAN",
-        REVIEW_KETUA: "UPLOAD SELESAI",
-        TERKIRIM: "TERKIRIM - SELESAI",
-        DIBATALKAN: "DIBATALKAN",
-      },
-      KEPALA_BAGIAN_KEUANGAN: {
-        DRAFT: "BELUM TIBA",
-        REVIEW_SEKPENGURUS: "BELUM TIBA",
-        LAMPIRAN_KABAG: "UPLOAD LAMPIRAN DIPERLUKAN",
-        REVIEW_KETUA: "UPLOAD SELESAI",
-        TERKIRIM: "TERKIRIM - SELESAI",
-        DIBATALKAN: "DIBATALKAN",
-      },
-      KEPALA_BAGIAN_UMUM: {
-        DRAFT: "BELUM TIBA",
-        REVIEW_SEKPENGURUS: "BELUM TIBA",
-        LAMPIRAN_KABAG: "UPLOAD LAMPIRAN DIPERLUKAN",
-        REVIEW_KETUA: "UPLOAD SELESAI",
-        TERKIRIM: "TERKIRIM - SELESAI",
-        DIBATALKAN: "DIBATALKAN",
-      },
-      KETUA_PENGURUS: {
-        DRAFT: "BELUM TIBA",
-        REVIEW_SEKPENGURUS: "MENUNGGU GILIRAN",
-        LAMPIRAN_KABAG: "MENUNGGU KELENGKAPAN",
-        REVIEW_KETUA: "PERLU REVIEW & TTD",
-        TERKIRIM: "TTD SELESAI - TERKIRIM",
-        DIBATALKAN: "DIBATALKAN",
-      },
-    };
+  async updateStatus(id, status) {
+    const existing = await prisma.suratKeluar.findUnique({ where: { id } });
 
-    return statusMapping[userRole]?.[surat.status] || "UNKNOWN";
+    if (!existing) {
+      const error = new Error("Surat keluar tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Validasi status workflow
+    const validStatuses = [
+      "DRAFT",
+      "REVIEW_SEKPENGURUS",
+      "LAMPIRAN_KABAG",
+      "REVIEW_KETUA",
+      "TERKIRIM",
+    ];
+    if (!validStatuses.includes(status)) {
+      const error = new Error("Status tidak valid");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const updated = await prisma.suratKeluar.update({
+      where: { id },
+      data: { status },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            nama_lengkap: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return updated;
   }
 
-  /**
-   * Helper: Get valid status transitions
-   */
-  getValidStatusTransitions(currentStatus, userRole) {
-    const transitions = {
-      ADMIN: {
-        DRAFT: ["REVIEW_SEKPENGURUS"],
-        REVIEW_SEKPENGURUS: ["LAMPIRAN_KABAG", "REVIEW_KETUA"],
-        LAMPIRAN_KABAG: ["REVIEW_KETUA"],
-        REVIEW_KETUA: ["TERKIRIM"],
-      },
-      SEKRETARIS_PENGURUS: {
-        REVIEW_SEKPENGURUS: ["LAMPIRAN_KABAG", "REVIEW_KETUA", "REVISI"],
-      },
-      KETUA_PENGURUS: {
-        REVIEW_KETUA: ["TERKIRIM", "REVISI"],
-      },
-      KEPALA_BAGIAN_PSDM: {
-        LAMPIRAN_KABAG: ["REVIEW_KETUA"],
-      },
-      KEPALA_BAGIAN_KEUANGAN: {
-        LAMPIRAN_KABAG: ["REVIEW_KETUA"],
-      },
-      KEPALA_BAGIAN_UMUM: {
-        LAMPIRAN_KABAG: ["REVIEW_KETUA"],
-      },
-    };
+  async remove(id) {
+    const existing = await prisma.suratKeluar.findUnique({
+      where: { id },
+    });
 
-    return transitions[userRole]?.[currentStatus] || [];
-  }
+    if (!existing) {
+      const error = new Error("Surat keluar tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
 
-  /**
-   * Helper: Get position for status
-   */
-  getPositionForStatus(status) {
-    const positions = {
-      DRAFT: "Sekretaris Kantor",
-      REVIEW_SEKPENGURUS: "Sekretaris Pengurus",
-      LAMPIRAN_KABAG: "Kepala Bagian",
-      REVIEW_KETUA: "Ketua Yayasan",
-      TERKIRIM: "Selesai",
-      DIBATALKAN: "Dibatalkan",
-    };
+    // Hanya bisa delete jika status DRAFT
+    if (existing.status !== "DRAFT") {
+      const error = new Error(
+        "Hanya surat dengan status DRAFT yang dapat dihapus"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
 
-    return positions[status] || "Unknown";
+    // Delete related lampiran dan tracking
+    await prisma.lampiran.deleteMany({
+      where: { suratKeluarId: id },
+    });
+
+    await prisma.trackingSurat.deleteMany({
+      where: { suratKeluarId: id },
+    });
+
+    await prisma.suratKeluar.delete({ where: { id } });
+    return true;
   }
 }
 
-module.exports = new SuratKeluarService();
+export default SuratKeluarService;

@@ -1,146 +1,167 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+// src/services/suratLampiranService.js
+import { prisma } from "../config/index.js";
+import cloudinary from "../config/cloudinary.js";
 
-class SuratLampiranService {
-  /**
-   * Buat surat lampiran (dari Kabag)
-   */
-  async createSuratLampiran(data, userId, userRole, kodeBagian) {
-    try {
-      const {
-        nomorSurat,
-        tanggalSurat,
-        perihal,
-        prioritas = "SEDANG",
-        suratKeluarRefId,
-      } = data;
-
-      // Validasi user adalah Kepala Bagian
-      if (!userRole.includes("KEPALA_BAGIAN")) {
-        throw new Error(
-          "Hanya Kepala Bagian yang dapat membuat surat lampiran"
-        );
-      }
-
-      // Generate nomor agenda
-      const nomorAgenda = await this.generateNomorAgendaLampiran(kodeBagian);
-
-      // Validasi nomor surat tidak duplikat
-      const existingNomor = await prisma.suratKeluarLampiran.findUnique({
-        where: { nomorSurat },
-      });
-
-      if (existingNomor) {
-        throw new Error(`Nomor surat ${nomorSurat} sudah ada di sistem`);
-      }
-
-      // Create surat lampiran
-      const suratLampiran = await prisma.suratKeluarLampiran.create({
-        data: {
-          nomorAgenda,
-          nomorSurat,
-          tanggalSurat: new Date(tanggalSurat),
-          perihal,
-          prioritas,
-          kodeBagian,
-          suratKeluarRefId,
-          status: "DRAFT",
-          kepalaKabagId: userId,
-        },
-      });
-
-      // Create tracking
-      await prisma.trackingSurat.create({
-        data: {
-          suratLampiranId: suratLampiran.id,
-          tahapProses: "DRAFT",
-          posisiSaat: `Kepala Bagian ${kodeBagian}`,
-          aksiDilakukan: "Membuat surat lampiran",
-          statusTracking: "DRAFT",
-          createdById: userId,
-        },
-      });
-
-      return {
-        success: true,
-        message: "Surat lampiran berhasil dibuat",
-        data: suratLampiran,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-  /**
-   * Update status surat lampiran
-   */
-  async updateStatusSuratLampiran(suratLampiranId, newStatus, userId) {
-    try {
-      const surat = await prisma.suratKeluarLampiran.findUnique({
-        where: { id: suratLampiranId },
-      });
-
-      if (!surat) {
-        throw new Error("Surat lampiran tidak ditemukan");
-      }
-
-      const updated = await prisma.suratKeluarLampiran.update({
-        where: { id: suratLampiranId },
-        data: {
-          status: newStatus,
-          updatedAt: new Date(),
-        },
-      });
-
-      await prisma.trackingSurat.create({
-        data: {
-          suratLampiranId: suratLampiranId,
-          tahapProses: newStatus,
-          posisiSaat: `Kepala Bagian ${surat.kodeBagian}`,
-          aksiDilakukan: `Status diubah ke ${newStatus}`,
-          statusTracking: newStatus,
-          createdById: userId,
-        },
-      });
-
-      return {
-        success: true,
-        message: `Status surat lampiran diubah ke ${newStatus}`,
-        data: updated,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Helper: Generate nomor agenda lampiran
-   */
-  async generateNomorAgendaLampiran(kodeBagian) {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const yearMonth = `${year}${month}`;
-
-    const lastAgenda = await prisma.suratKeluarLampiran.findFirst({
-      where: {
-        nomorAgenda: {
-          startsWith: `SKLAMP-${kodeBagian}-${yearMonth}-`,
-        },
-      },
-      orderBy: { createdAt: "desc" },
+class LampiranService {
+  async getBySuratMasuk(suratMasukId) {
+    // Validasi surat masuk ada
+    const surat = await prisma.suratMasuk.findUnique({
+      where: { id: suratMasukId },
     });
 
-    let nextNumber = 1;
-    if (lastAgenda) {
-      const lastNumber = parseInt(lastAgenda.nomorAgenda.split("-")[3]);
-      nextNumber = lastNumber + 1;
+    if (!surat) {
+      const error = new Error("Surat masuk tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
     }
 
-    return `SKLAMP-${kodeBagian}-${yearMonth}-${String(nextNumber).padStart(
-      4,
-      "0"
-    )}`;
+    const lampiran = await prisma.lampiran.findMany({
+      where: { suratMasukId },
+      orderBy: { uploadedAt: "desc" },
+    });
+
+    return lampiran;
+  }
+
+  async getBySuratKeluar(suratKeluarId) {
+    // Validasi surat keluar ada
+    const surat = await prisma.suratKeluar.findUnique({
+      where: { id: suratKeluarId },
+    });
+
+    if (!surat) {
+      const error = new Error("Surat keluar tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const lampiran = await prisma.lampiran.findMany({
+      where: { suratKeluarId },
+      orderBy: { uploadedAt: "desc" },
+    });
+
+    return lampiran;
+  }
+
+  async getById(id) {
+    const lampiran = await prisma.lampiran.findUnique({
+      where: { id },
+    });
+
+    if (!lampiran) {
+      const error = new Error("Lampiran tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    return lampiran;
+  }
+
+  async createSuratMasuk(suratMasukId, file, keterangan) {
+    // Validasi surat masuk ada
+    const surat = await prisma.suratMasuk.findUnique({
+      where: { id: suratMasukId },
+    });
+
+    if (!surat) {
+      const error = new Error("Surat masuk tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // File info dari multer cloudinary
+    const { filename, size, mimetype, path } = file;
+
+    const created = await prisma.lampiran.create({
+      data: {
+        suratMasukId,
+        namaFile: file.originalname,
+        namaTersimpan: filename,
+        path: file.path || path,
+        ukuran: size,
+        mimeType: mimetype,
+        keterangan: keterangan || null,
+      },
+    });
+
+    return created;
+  }
+
+  async createSuratKeluar(suratKeluarId, file, keterangan) {
+    // Validasi surat keluar ada
+    const surat = await prisma.suratKeluar.findUnique({
+      where: { id: suratKeluarId },
+    });
+
+    if (!surat) {
+      const error = new Error("Surat keluar tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // File info dari multer cloudinary
+    const { filename, size, mimetype, path } = file;
+
+    const created = await prisma.lampiran.create({
+      data: {
+        suratKeluarId,
+        namaFile: file.originalname,
+        namaTersimpan: filename,
+        path: file.path || path,
+        ukuran: size,
+        mimeType: mimetype,
+        keterangan: keterangan || null,
+      },
+    });
+
+    return created;
+  }
+
+  async updateKeterangan(id, keterangan) {
+    const existing = await prisma.lampiran.findUnique({ where: { id } });
+
+    if (!existing) {
+      const error = new Error("Lampiran tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const updated = await prisma.lampiran.update({
+      where: { id },
+      data: { keterangan: keterangan || null },
+    });
+
+    return updated;
+  }
+
+  async remove(id) {
+    const existing = await prisma.lampiran.findUnique({ where: { id } });
+
+    if (!existing) {
+      const error = new Error("Lampiran tidak ditemukan");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Delete file dari cloudinary
+    try {
+      if (existing.namaTersimpan) {
+        const publicId = `upt-pik/documents/${existing.namaTersimpan
+          .split(".")
+          .slice(0, -1)
+          .join(".")}`;
+        await cloudinary.uploader.destroy(publicId, {
+          resource_type: "raw",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting file from cloudinary:", error);
+      // Lanjutkan meski gagal delete dari cloudinary
+    }
+
+    await prisma.lampiran.delete({ where: { id } });
+    return true;
   }
 }
 
-module.exports = new SuratLampiranService();
+export default LampiranService;
