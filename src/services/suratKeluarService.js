@@ -41,6 +41,14 @@ class SuratKeluarService {
               ukuran: true,
             },
           },
+          balasanDariSuratMasuk: {
+            select: {
+              id: true,
+              nomorSurat: true,
+              perihal: true,
+              asalSurat: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -67,6 +75,15 @@ class SuratKeluarService {
           orderBy: { createdAt: "asc" },
         },
         disposisi: true,
+        balasanDariSuratMasuk: {
+          select: {
+            id: true,
+            nomorSurat: true,
+            perihal: true,
+            asalSurat: true,
+            tanggalDiterima: true,
+          },
+        },
       },
     });
 
@@ -87,6 +104,7 @@ class SuratKeluarService {
       perihal,
       kategori,
       catatan,
+      balasanDariSuratMasukId,
     } = data;
 
     // Validasi nomor surat tidak duplikat
@@ -125,6 +143,7 @@ class SuratKeluarService {
         catatan: catatan || null,
         status: "DRAFT",
         createdById: userId,
+        balasanDariSuratMasukId: balasanDariSuratMasukId || null,
       },
       include: {
         createdBy: {
@@ -132,6 +151,13 @@ class SuratKeluarService {
             id: true,
             nama_lengkap: true,
             email: true,
+          },
+        },
+        balasanDariSuratMasuk: {
+          select: {
+            id: true,
+            nomorSurat: true,
+            perihal: true,
           },
         },
       },

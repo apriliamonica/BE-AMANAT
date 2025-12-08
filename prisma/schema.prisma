@@ -118,6 +118,7 @@ model SuratMasuk {
   lampiran        Lampiran[]
   disposisi       Disposisi[]
   tracking        TrackingSurat[]
+  suratBalasan    SuratKeluar[]       @relation("SuratBalasan")  // Surat keluar yang merupakan balasan
 
   @@map("surat_masuk")
   @@index([status])
@@ -139,6 +140,9 @@ model SuratKeluar {
   kategori        JenisKategori
   status          StatusSuratKeluar   @default(DRAFT)
   
+  // Link ke surat masuk (jika ini adalah surat balasan)
+  balasanDariSuratMasukId String?
+  balasanDariSuratMasuk   SuratMasuk? @relation("SuratBalasan", fields: [balasanDariSuratMasukId], references: [id])
   
   // Metadata
   catatan         String?             @db.Text

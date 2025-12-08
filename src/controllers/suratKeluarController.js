@@ -73,6 +73,7 @@ export class SuratKeluarController {
           "kategori",
           "catatan",
           "status",
+          "balasanDariSuratMasukId",
         ],
       });
 
