@@ -57,7 +57,17 @@ export class SuratMasukController {
   // POST /surat-masuk
   create = async (req, res) => {
     try {
-      await validateRequest(req, {
+      // Validasi awal (file validation handled by multer)
+      // Note: With FormData, integers might come as strings, let Prisma/Service handle type conversion or do it here if needed.
+      
+      const fileUrl = req.file ? req.file.path : null;
+
+      const suratData = {
+        ...req.body,
+        fileSurat: fileUrl, // Add file URL to data
+      };
+
+      await validateRequest({ body: suratData }, { // Validate the constructed data object
         required: [
           "nomorSurat",
           "tanggalSurat",
@@ -75,11 +85,12 @@ export class SuratMasukController {
           "kategori",
           "namaPengirim",
           "status",
+          "fileSurat", // Allow fileSurat
         ],
       });
 
       const created = await this.suratMasukService.create(
-        req.body,
+        suratData,
         req.user.id
       );
       return ApiResponse.success(

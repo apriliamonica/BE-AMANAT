@@ -1,7 +1,7 @@
 // src/middleware/upload.js
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 // Create upload directory if not exists
 const uploadDir = process.env.UPLOAD_DIR || './uploads';
@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = process.env.ALLOWED_FILE_TYPES.split(',');
+  const allowedTypes = (process.env.ALLOWED_FILE_TYPES || 'jpg,jpeg,png,pdf').split(',');
   const ext = path.extname(file.originalname).toLowerCase().slice(1);
   
   if (allowedTypes.includes(ext)) {
@@ -34,7 +34,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 // Multer configuration
-const upload = multer({
+export const upload = multer({
   storage,
   fileFilter,
   limits: {
@@ -42,14 +42,12 @@ const upload = multer({
   }
 });
 
-// Upload single file
-const uploadSingle = upload.single('file');
-
-// Upload multiple files
-const uploadMultiple = upload.array('files', 10); // Max 10 files
+// Helper for single/multiple (optional wrappers)
+export const uploadSingle = upload.single('file');
+export const uploadMultiple = upload.array('files', 10);
 
 // Delete file helper
-const deleteFile = (filePath) => {
+export const deleteFile = (filePath) => {
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -60,10 +58,4 @@ const deleteFile = (filePath) => {
     console.error('Error deleting file:', error);
     return false;
   }
-};
-
-module.exports = {
-  uploadSingle,
-  uploadMultiple,
-  deleteFile
 };

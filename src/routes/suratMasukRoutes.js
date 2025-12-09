@@ -4,6 +4,8 @@ import { AuthMiddleware } from "../middlewares/auth.js";
 import { SuratMasukController } from "../controllers/suratMasukController.js";
 import { authorize } from "../middlewares/authorize.js";
 
+import { upload } from "../middlewares/upload.js";
+
 const router = express.Router();
 const controller = new SuratMasukController();
 
@@ -21,6 +23,7 @@ router.get("/:id", controller.detail);
 router.post(
   "/",
   authorize(["ADMIN", "SEKRETARIS_PENGURUS"]),
+  upload.single("fileSurat"),
   controller.create
 );
 router.put(
